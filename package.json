@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node tools/build.mjs",
     "dev": "node tools/serve.mjs",
-    "test": "node --test test/",
+    "test": "node --test test/*.test.js",
     "batch": "node tools/sim_batch.mjs",
     "smoke": "node tools/smoke.mjs"
   },
