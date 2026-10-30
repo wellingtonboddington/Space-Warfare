@@ -24,10 +24,10 @@ const OPTICS_BASE = {
 };
 const RADAR_BASE = {
   type: 'radar', component: 'radar', boresight: [0, 1, 0], fovHalf: 55 * DEG, gimbal: false,
-  peakPower: 6e3,      // W
+  peakPower: 9e3,      // W
   apertureArea: 0.30,  // m² (gain = 4πA/λ²)
   freq: 10e9,          // X band
-  noiseTemp: 600, bandwidth: 2e6, losses: 4.0, pulsesPerDwell: 64,
+  noiseTemp: 600, bandwidth: 2e6, losses: 4.0, pulsesPerDwell: 2048, // ~0.1 s coherent dwell
   rangeBins: 128, dopplerBins: 64, maxRange: 400e3, maxRangeRate: 1500,
   pingEnergyJ: 4e3,    // electrical energy per ping dwell
 };
@@ -74,7 +74,7 @@ export const KITS = {
         slewRate: 25 * DEG, aperture: 0.60, nei: 2.5e-15, frameHz: 8, pixels: [128, 96], bands: ['MWIR', 'LWIR'] },
       { type: 'optical', component: 'telescope', name: 'telescope-vis', boresight: [0, 1, 0], fovHalf: 0.35 * DEG, gimbal: true,
         slewRate: 25 * DEG, aperture: 0.60, magLimit: 16.5, frameHz: 8, pixels: [256, 192] },
-      { ...RADAR_BASE, component: 'aesa', name: 'aesa', boresight: [0, 0, -1], fovHalf: 60 * DEG, peakPower: 18e3, apertureArea: 2.2, pulsesPerDwell: 128, maxRange: 900e3 },
+      { ...RADAR_BASE, component: 'aesa', name: 'aesa', boresight: [0, 0, -1], fovHalf: 60 * DEG, peakPower: 18e3, apertureArea: 2.2, pulsesPerDwell: 4096, maxRange: 900e3 },
       { type: 'lidar', component: 'lidar', name: 'lidar', boresight: [0, 1, 0], fovHalf: 80 * DEG, gimbal: true, pulseEnergy: 0.5, aperture: 0.12, wavelength: 1.55e-6, maxRange: 300e3 },
     ],
     weaponsAdd: [],
@@ -104,7 +104,7 @@ export const KITS = {
     radiatorAreaAdd: 2 * 2 * 2.0 * 2.7,
     powerAdd: { reactorW: 45e3 },     // compact fission unit for capacitor recharge
     sensorsAdd: [
-      { ...RADAR_BASE, component: 'radar', name: 'PD tracking radar', boresight: [0, 1, 0], fovHalf: 60 * DEG, peakPower: 10e3, apertureArea: 0.6, pulsesPerDwell: 96 },
+      { ...RADAR_BASE, component: 'radar', name: 'PD tracking radar', boresight: [0, 1, 0], fovHalf: 60 * DEG, peakPower: 10e3, apertureArea: 0.6, pulsesPerDwell: 3072 },
     ],
     weaponsAdd: [
       { type: 'pd', component: 'pd_0', name: 'PD-1', mount: 'PD_0', opticalPower: 420e3, wavelength: 1.06e-6, mirror: 0.5,

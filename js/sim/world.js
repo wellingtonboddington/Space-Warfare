@@ -28,7 +28,7 @@ export class World {
     this.thirdBodies = true;
   }
 
-  add(e) { this.entities.set(e.id, e); if (!e.history && e.initHistory) e.initHistory(); this._record(e); return e; }
+  add(e) { e.world = this; this.entities.set(e.id, e); if (!e.history && e.initHistory) e.initHistory(); this._record(e); return e; }
   remove(id) { this.entities.delete(id); }
   get(id) { return this.entities.get(id) ?? null; }
   ships() { const out = []; for (const e of this.entities.values()) if (e.kind === 'ship') out.push(e); return out; }

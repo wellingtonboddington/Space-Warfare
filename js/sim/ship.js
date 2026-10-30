@@ -173,6 +173,16 @@ export class Ship {
     };
   }
 
+  /** Signature parameters used by every remote sensor (see sensors/signature.js). */
+  signatureParams() {
+    const sg = this.spec.signature;
+    return {
+      area: sg.area, rcs: sg.rcs, emissivity: sg.emissivity, absorptivity: sg.absorptivity,
+      radiatorArea: this.spec.thermal.radiatorArea * (this.alive ? 1 : 0.5), bellArea: this.spec.mainEngine ? 3.2 : 0,
+      albedo: sg.albedo ?? 0.32, swerling: this.spec.decoy ? 0 : 1,
+    };
+  }
+
   destroy(t, cause, world, info = {}) {
     if (!this.alive) return;
     this.alive = false;
