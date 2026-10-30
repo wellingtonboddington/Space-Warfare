@@ -1,0 +1,2617 @@
+{
+ "version": 1,
+ "generator": "tools/gen_cockpit_layout.mjs",
+ "units": "metres",
+ "frame": "Blender coordinates relative to design eye point EYE=(0,0,0): +X pilot right, +Y forward, +Z up",
+ "shell": {
+  "note": "Cramped single-seat pressure capsule. Interior roughly x∈[-0.66,0.66], y∈[-0.75,0.90], z∈[-1.15,0.55]. Legs run forward under MAIN panel to heel rest at about (±0.12, 0.55, -1.10).",
+  "eye": [
+   0,
+   0,
+   0
+  ],
+  "seatRef": [
+   0,
+   -0.16,
+   -0.74
+  ],
+  "headrest": [
+   0,
+   -0.22,
+   0.02
+  ]
+ },
+ "blankPlateStick": {
+  "id": "BLANK_PLATE_STICK",
+  "pos": [
+   0,
+   0.22,
+   -0.98
+  ],
+  "normal": [
+   0,
+   -0.3,
+   0.95
+  ],
+  "size": 0.16,
+  "note": "Floor-mounted blanking plate between the knees where the pre-Severance hand controller stood. 8 bolts, stencilled."
+ },
+ "panels": [
+  {
+   "id": "MAIN",
+   "desc": "Main instrument panel: four MFDs, AI interpretation display, standby gauges",
+   "center": [
+    0,
+    0.66,
+    -0.33
+   ],
+   "normal": [
+    0,
+    -0.9404,
+    0.3401
+   ],
+   "up": [
+    0,
+    0.3401,
+    0.9404
+   ],
+   "size": [
+    0.96,
+    0.4
+   ]
+  },
+  {
+   "id": "GLARE",
+   "desc": "Glareshield strip: master warn/caution + 12-light annunciator grid",
+   "center": [
+    0,
+    0.6,
+    -0.08
+   ],
+   "normal": [
+    0,
+    -0.6,
+    0.8
+   ],
+   "up": [
+    0,
+    0.8,
+    0.6
+   ],
+   "size": [
+    0.72,
+    0.09
+   ]
+  },
+  {
+   "id": "PEDESTAL",
+   "desc": "Centre pedestal between the knees: TRUST DIAL, consent, confirm/deny",
+   "center": [
+    0,
+    0.4,
+    -0.7
+   ],
+   "normal": [
+    0,
+    -0.4983,
+    0.867
+   ],
+   "up": [
+    0,
+    0.867,
+    0.4983
+   ],
+   "size": [
+    0.24,
+    0.26
+   ]
+  },
+  {
+   "id": "LEFT_CONSOLE",
+   "desc": "Left console: battery/bus/capacitor switches, sensor-bus selector, throttle blanking plate",
+   "center": [
+    -0.4,
+    0.08,
+    -0.64
+   ],
+   "normal": [
+    0.2494,
+    -0.1995,
+    0.9476
+   ],
+   "up": [
+    0,
+    0.9806,
+    0.1961
+   ],
+   "size": [
+    0.2,
+    0.44
+   ]
+  },
+  {
+   "id": "RIGHT_CONSOLE",
+   "desc": "Right console: coolant loops, manual pump, heat-sink vent",
+   "center": [
+    0.4,
+    0.08,
+    -0.64
+   ],
+   "normal": [
+    -0.2494,
+    -0.1995,
+    0.9476
+   ],
+   "up": [
+    0,
+    0.9806,
+    0.1961
+   ],
+   "size": [
+    0.2,
+    0.44
+   ]
+  },
+  {
+   "id": "LEFT_WALL",
+   "desc": "Left sidewall: circuit breaker panel (3x5) + bus voltmeter/ammeter",
+   "center": [
+    -0.56,
+    0.1,
+    -0.26
+   ],
+   "normal": [
+    0.9701,
+    -0.1455,
+    0.194
+   ],
+   "up": [
+    -0.1961,
+    0,
+    0.9806
+   ],
+   "size": [
+    0.34,
+    0.26
+   ]
+  },
+  {
+   "id": "RIGHT_WALL",
+   "desc": "Right sidewall: O2 valves, scrubber, CO2 cartridge, cabin gauges, cabin dump",
+   "center": [
+    0.56,
+    0.1,
+    -0.26
+   ],
+   "normal": [
+    -0.9701,
+    -0.1455,
+    0.194
+   ],
+   "up": [
+    0.1961,
+    0,
+    0.9806
+   ],
+   "size": [
+    0.34,
+    0.26
+   ]
+  },
+  {
+   "id": "OVERHEAD",
+   "desc": "Overhead panel: cabin lighting, fans, alarm silence, suit O2",
+   "center": [
+    0,
+    0.18,
+    0.4
+   ],
+   "normal": [
+    0,
+    -0.3489,
+    -0.9371
+   ],
+   "up": [
+    0,
+    0.9371,
+    -0.3489
+   ],
+   "size": [
+    0.46,
+    0.22
+   ]
+  }
+ ],
+ "screens": [
+  {
+   "id": "MFD_L",
+   "panel": "MAIN",
+   "pos": [
+    -0.355,
+    0.045
+   ],
+   "size": [
+    0.17,
+    0.1275
+   ],
+   "px": [
+    512,
+    384
+   ],
+   "role": "raw: IR focal plane / optical / exterior cameras"
+  },
+  {
+   "id": "MFD_C",
+   "panel": "MAIN",
+   "pos": [
+    -0.118,
+    0.045
+   ],
+   "size": [
+    0.17,
+    0.1275
+   ],
+   "px": [
+    512,
+    384
+   ],
+   "role": "raw: radar range-Doppler / B-scope / RWR"
+  },
+  {
+   "id": "AI",
+   "panel": "MAIN",
+   "pos": [
+    0.118,
+    0.045
+   ],
+   "size": [
+    0.17,
+    0.1275
+   ],
+   "px": [
+    512,
+    384
+   ],
+   "role": "AI INTERPRETATION (fused tracks, classification, predictions). Distinct amber-framed bezel."
+  },
+  {
+   "id": "MFD_R",
+   "panel": "MAIN",
+   "pos": [
+    0.355,
+    0.045
+   ],
+   "size": [
+    0.17,
+    0.1275
+   ],
+   "px": [
+    512,
+    384
+   ],
+   "role": "systems: power / thermal / life support / propellant / AI calibration log"
+  },
+  {
+   "id": "COMM",
+   "panel": "MAIN",
+   "pos": [
+    0.3,
+    -0.155
+   ],
+   "size": [
+    0.15,
+    0.05
+   ],
+   "px": [
+    384,
+    128
+   ],
+   "role": "comm text strip (last transmission)"
+  }
+ ],
+ "controls": [
+  {
+   "id": "BZ_L_1",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    -0.423,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.L.softkey1",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_L_2",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    -0.389,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.L.softkey2",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_L_3",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    -0.355,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.L.softkey3",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_L_4",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    -0.32099999999999995,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.L.softkey4",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_L_5",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    -0.287,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.L.softkey5",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_C_1",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    -0.186,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.C.softkey1",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_C_2",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    -0.152,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.C.softkey2",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_C_3",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    -0.118,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.C.softkey3",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_C_4",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    -0.08399999999999999,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.C.softkey4",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_C_5",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    -0.04999999999999999,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.C.softkey5",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_AI_1",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    0.04999999999999999,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.AI.softkey1",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_AI_2",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    0.08399999999999999,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.AI.softkey2",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_AI_3",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    0.118,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.AI.softkey3",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_AI_4",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    0.152,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.AI.softkey4",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_AI_5",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    0.186,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.AI.softkey5",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_R_1",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    0.287,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.R.softkey1",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_R_2",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    0.32099999999999995,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.R.softkey2",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_R_3",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    0.355,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.R.softkey3",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_R_4",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    0.389,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.R.softkey4",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "BZ_R_5",
+   "type": "button",
+   "panel": "MAIN",
+   "pos": [
+    0.423,
+    -0.035
+   ],
+   "size": 0.016,
+   "bind": "mfd.R.softkey5",
+   "reach": 0.85,
+   "noLabel": true
+  },
+  {
+   "id": "SW_OVL_L",
+   "type": "toggle",
+   "panel": "MAIN",
+   "pos": [
+    -0.355,
+    -0.085
+   ],
+   "label": "AI OVLY",
+   "states": [
+    "OFF",
+    "ON"
+   ],
+   "bind": "mfd.L.overlay",
+   "reach": 0.85,
+   "labelIndex": 0
+  },
+  {
+   "id": "SW_OVL_C",
+   "type": "toggle",
+   "panel": "MAIN",
+   "pos": [
+    -0.118,
+    -0.085
+   ],
+   "label": "AI OVLY",
+   "states": [
+    "OFF",
+    "ON"
+   ],
+   "bind": "mfd.C.overlay",
+   "reach": 0.85,
+   "labelIndex": 1
+  },
+  {
+   "id": "GAUGE_PROP",
+   "type": "gauge",
+   "panel": "MAIN",
+   "pos": [
+    -0.39,
+    -0.155
+   ],
+   "size": 0.07,
+   "label": "PROP %",
+   "sweep": [
+    -135,
+    135
+   ],
+   "bind": "gauge.propellant",
+   "labelIndex": 2
+  },
+  {
+   "id": "GAUGE_ACCEL",
+   "type": "gauge",
+   "panel": "MAIN",
+   "pos": [
+    -0.29,
+    -0.155
+   ],
+   "size": 0.07,
+   "label": "ACCEL G",
+   "sweep": [
+    -135,
+    135
+   ],
+   "bind": "gauge.accel",
+   "labelIndex": 3
+  },
+  {
+   "id": "GAUGE_CLOCK",
+   "type": "gauge",
+   "panel": "MAIN",
+   "pos": [
+    -0.19,
+    -0.155
+   ],
+   "size": 0.07,
+   "label": "MET",
+   "sweep": [
+    0,
+    360
+   ],
+   "bind": "gauge.clock",
+   "labelIndex": 4
+  },
+  {
+   "id": "GAUGE_ATT",
+   "type": "gauge",
+   "panel": "MAIN",
+   "pos": [
+    0.05,
+    -0.155
+   ],
+   "size": 0.08,
+   "label": "ATT RATE",
+   "sweep": [
+    -135,
+    135
+   ],
+   "bind": "gauge.attRate",
+   "labelIndex": 5
+  },
+  {
+   "id": "BT_MWARN",
+   "type": "button",
+   "panel": "GLARE",
+   "pos": [
+    -0.31,
+    0
+   ],
+   "size": 0.04,
+   "label": "MASTER WARN",
+   "light": "red",
+   "bind": "alarm.masterWarnReset",
+   "reach": 0.9,
+   "labelIndex": 6
+  },
+  {
+   "id": "BT_MCAUT",
+   "type": "button",
+   "panel": "GLARE",
+   "pos": [
+    0.31,
+    0
+   ],
+   "size": 0.04,
+   "label": "MASTER CAUT",
+   "light": "amber",
+   "bind": "alarm.masterCautReset",
+   "reach": 0.9,
+   "labelIndex": 7
+  },
+  {
+   "id": "SW_TRUST",
+   "type": "rotary",
+   "panel": "PEDESTAL",
+   "pos": [
+    0,
+    0.045
+   ],
+   "size": 0.075,
+   "label": "AI LATITUDE",
+   "detents": [
+    60,
+    30,
+    0,
+    -30,
+    -60
+   ],
+   "states": [
+    "CONFIRM ALL",
+    "CONFIRM WPNS",
+    "CONFIRM LETHAL",
+    "WPNS FREE",
+    "AUTONOMOUS"
+   ],
+   "detentLabels": true,
+   "bind": "trustDial",
+   "reach": 1,
+   "note": "Large knurled knob with pointer skirt; heavy detents; detent captions engraved around it.",
+   "labelIndex": 8,
+   "detentLabelIndices": [
+    9,
+    10,
+    11,
+    12,
+    13
+   ]
+  },
+  {
+   "id": "SW_CONSENT",
+   "type": "toggle_guarded",
+   "panel": "PEDESTAL",
+   "pos": [
+    -0.075,
+    -0.075
+   ],
+   "label": "WPN CONSENT",
+   "states": [
+    "SAFE",
+    "CONSENT"
+   ],
+   "bind": "weaponsConsent",
+   "reach": 1,
+   "labelIndex": 14
+  },
+  {
+   "id": "BT_CONFIRM",
+   "type": "button",
+   "panel": "PEDESTAL",
+   "pos": [
+    0.02,
+    -0.08
+   ],
+   "size": 0.032,
+   "label": "CONFIRM",
+   "light": "green",
+   "bind": "request.confirm",
+   "reach": 1,
+   "labelIndex": 15
+  },
+  {
+   "id": "BT_DENY",
+   "type": "button",
+   "panel": "PEDESTAL",
+   "pos": [
+    0.075,
+    -0.08
+   ],
+   "size": 0.032,
+   "label": "DENY",
+   "light": "red",
+   "bind": "request.deny",
+   "reach": 1,
+   "labelIndex": 16
+  },
+  {
+   "id": "SW_BATT",
+   "type": "toggle",
+   "panel": "LEFT_CONSOLE",
+   "pos": [
+    -0.05,
+    0.16
+   ],
+   "label": "BATT",
+   "states": [
+    "OFF",
+    "ON"
+   ],
+   "bind": "power.battery",
+   "reach": 0.9,
+   "initial": 1,
+   "labelIndex": 17
+  },
+  {
+   "id": "SW_BUS_TIE",
+   "type": "toggle",
+   "panel": "LEFT_CONSOLE",
+   "pos": [
+    0.05,
+    0.16
+   ],
+   "label": "BUS TIE",
+   "states": [
+    "OPEN",
+    "TIED"
+   ],
+   "bind": "power.busTie",
+   "reach": 0.9,
+   "labelIndex": 18
+  },
+  {
+   "id": "SW_FUELCELL2",
+   "type": "toggle",
+   "panel": "LEFT_CONSOLE",
+   "pos": [
+    -0.05,
+    0.08
+   ],
+   "label": "FUEL CELL 2",
+   "states": [
+    "OFF",
+    "ON"
+   ],
+   "bind": "power.fuelCell2",
+   "reach": 0.9,
+   "initial": 1,
+   "labelIndex": 19
+  },
+  {
+   "id": "SW_CAP_CHG",
+   "type": "toggle_guarded",
+   "panel": "LEFT_CONSOLE",
+   "pos": [
+    0.05,
+    0.08
+   ],
+   "label": "PD CAP CHG",
+   "states": [
+    "OFF",
+    "CHARGE"
+   ],
+   "bind": "power.capCharge",
+   "reach": 0.9,
+   "labelIndex": 20
+  },
+  {
+   "id": "SW_SENS_BUS",
+   "type": "rotary",
+   "panel": "LEFT_CONSOLE",
+   "pos": [
+    0,
+    -0.01
+   ],
+   "size": 0.045,
+   "label": "SENSOR BUS",
+   "detents": [
+    30,
+    0,
+    -30
+   ],
+   "states": [
+    "A",
+    "B",
+    "X-TIE"
+   ],
+   "detentLabels": true,
+   "bind": "power.sensorBus",
+   "reach": 0.85,
+   "labelIndex": 21,
+   "detentLabelIndices": [
+    22,
+    23,
+    24
+   ]
+  },
+  {
+   "id": "BLANK_PLATE_THR",
+   "type": "static",
+   "panel": "LEFT_CONSOLE",
+   "pos": [
+    0,
+    -0.13
+   ],
+   "size": 0.14,
+   "label": "THR REMOVED  SEV-DIR 7/41",
+   "note": "Bolted blanking plate (8 bolts) where the pre-Severance throttle quadrant was. Stencilled. Slightly scratched edges.",
+   "labelIndex": 25
+  },
+  {
+   "id": "VLV_CLNT_A",
+   "type": "valve",
+   "panel": "RIGHT_CONSOLE",
+   "pos": [
+    -0.045,
+    0.15
+   ],
+   "size": 0.05,
+   "label": "CLNT LOOP A",
+   "states": [
+    "OPEN",
+    "SHUT"
+   ],
+   "bind": "thermal.valveA",
+   "reach": 0.9,
+   "labelIndex": 26
+  },
+  {
+   "id": "VLV_CLNT_B",
+   "type": "valve",
+   "panel": "RIGHT_CONSOLE",
+   "pos": [
+    0.045,
+    0.15
+   ],
+   "size": 0.05,
+   "label": "CLNT LOOP B",
+   "states": [
+    "OPEN",
+    "SHUT"
+   ],
+   "bind": "thermal.valveB",
+   "reach": 0.9,
+   "labelIndex": 27
+  },
+  {
+   "id": "SW_RAD_BYPASS",
+   "type": "toggle",
+   "panel": "RIGHT_CONSOLE",
+   "pos": [
+    -0.05,
+    0.06
+   ],
+   "label": "RAD BYPASS",
+   "states": [
+    "NORM",
+    "BYPASS"
+   ],
+   "bind": "thermal.radBypass",
+   "reach": 0.9,
+   "labelIndex": 28
+  },
+  {
+   "id": "SW_HS_VENT",
+   "type": "toggle_guarded",
+   "panel": "RIGHT_CONSOLE",
+   "pos": [
+    0.05,
+    0.06
+   ],
+   "label": "H/SINK VENT",
+   "states": [
+    "CLOSED",
+    "VENT"
+   ],
+   "bind": "thermal.heatsinkVent",
+   "reach": 0.9,
+   "labelIndex": 29
+  },
+  {
+   "id": "LVR_MANUAL_PUMP",
+   "type": "lever",
+   "panel": "RIGHT_CONSOLE",
+   "pos": [
+    0,
+    -0.07
+   ],
+   "size": 0.16,
+   "label": "MANUAL CLNT PUMP",
+   "bind": "thermal.manualPump",
+   "reach": 0.8,
+   "note": "Long hinged pump handle with rubber grip, stowed flat; pilot pumps it back and forth.",
+   "labelIndex": 30
+  },
+  {
+   "id": "CB_RADAR",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    -0.12,
+    0.035
+   ],
+   "size": 0.018,
+   "label": "RADAR",
+   "bind": "breaker.radar",
+   "reach": 0.8,
+   "labelIndex": 31
+  },
+  {
+   "id": "CB_IRST",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    -0.06,
+    0.035
+   ],
+   "size": 0.018,
+   "label": "IRST",
+   "bind": "breaker.irst",
+   "reach": 0.8,
+   "labelIndex": 32
+  },
+  {
+   "id": "CB_OPT",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    0,
+    0.035
+   ],
+   "size": 0.018,
+   "label": "OPTICS",
+   "bind": "breaker.optics",
+   "reach": 0.8,
+   "labelIndex": 33
+  },
+  {
+   "id": "CB_LIDAR",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    0.06,
+    0.035
+   ],
+   "size": 0.018,
+   "label": "LIDAR",
+   "bind": "breaker.lidar",
+   "reach": 0.8,
+   "labelIndex": 34
+  },
+  {
+   "id": "CB_COMMS",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    0.12,
+    0.035
+   ],
+   "size": 0.018,
+   "label": "COMMS",
+   "bind": "breaker.comms",
+   "reach": 0.8,
+   "labelIndex": 35
+  },
+  {
+   "id": "CB_PD",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    -0.12,
+    -0.024999999999999994
+   ],
+   "size": 0.018,
+   "label": "PD LASER",
+   "bind": "breaker.pd",
+   "reach": 0.8,
+   "labelIndex": 36
+  },
+  {
+   "id": "CB_KKV",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    -0.06,
+    -0.024999999999999994
+   ],
+   "size": 0.018,
+   "label": "KKV LNCH",
+   "bind": "breaker.kkv",
+   "reach": 0.8,
+   "labelIndex": 37
+  },
+  {
+   "id": "CB_RCS",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    0,
+    -0.024999999999999994
+   ],
+   "size": 0.018,
+   "label": "RCS",
+   "bind": "breaker.rcs",
+   "reach": 0.8,
+   "labelIndex": 38
+  },
+  {
+   "id": "CB_ENG",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    0.06,
+    -0.024999999999999994
+   ],
+   "size": 0.018,
+   "label": "ENG CTRL",
+   "bind": "breaker.engine",
+   "reach": 0.8,
+   "labelIndex": 39
+  },
+  {
+   "id": "CB_AVION",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    0.12,
+    -0.024999999999999994
+   ],
+   "size": 0.018,
+   "label": "AVIONICS",
+   "bind": "breaker.avionics",
+   "reach": 0.8,
+   "labelIndex": 40
+  },
+  {
+   "id": "CB_LIFE",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    -0.12,
+    -0.08499999999999999
+   ],
+   "size": 0.018,
+   "label": "LIFE SPT",
+   "bind": "breaker.life",
+   "reach": 0.8,
+   "labelIndex": 41
+  },
+  {
+   "id": "CB_FANS",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    -0.06,
+    -0.08499999999999999
+   ],
+   "size": 0.018,
+   "label": "CAB FANS",
+   "bind": "breaker.fans",
+   "reach": 0.8,
+   "labelIndex": 42
+  },
+  {
+   "id": "CB_PUMP_A",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    0,
+    -0.08499999999999999
+   ],
+   "size": 0.018,
+   "label": "CLNT PUMP A",
+   "bind": "breaker.pumpA",
+   "reach": 0.8,
+   "labelIndex": 43
+  },
+  {
+   "id": "CB_PUMP_B",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    0.06,
+    -0.08499999999999999
+   ],
+   "size": 0.018,
+   "label": "CLNT PUMP B",
+   "bind": "breaker.pumpB",
+   "reach": 0.8,
+   "labelIndex": 44
+  },
+  {
+   "id": "CB_HTR",
+   "type": "breaker",
+   "panel": "LEFT_WALL",
+   "pos": [
+    0.12,
+    -0.08499999999999999
+   ],
+   "size": 0.018,
+   "label": "HEATERS",
+   "bind": "breaker.heaters",
+   "reach": 0.8,
+   "labelIndex": 45
+  },
+  {
+   "id": "GAUGE_BUS_V",
+   "type": "gauge",
+   "panel": "LEFT_WALL",
+   "pos": [
+    -0.09,
+    0.105
+   ],
+   "size": 0.06,
+   "label": "BUS V",
+   "sweep": [
+    -120,
+    120
+   ],
+   "bind": "gauge.busV",
+   "labelIndex": 46
+  },
+  {
+   "id": "GAUGE_BUS_A",
+   "type": "gauge",
+   "panel": "LEFT_WALL",
+   "pos": [
+    0.03,
+    0.105
+   ],
+   "size": 0.06,
+   "label": "BUS A",
+   "sweep": [
+    -120,
+    120
+   ],
+   "bind": "gauge.busA",
+   "labelIndex": 47
+  },
+  {
+   "id": "GAUGE_CAP",
+   "type": "gauge",
+   "panel": "LEFT_WALL",
+   "pos": [
+    0.13,
+    0.105
+   ],
+   "size": 0.05,
+   "label": "PD CAP",
+   "sweep": [
+    -120,
+    120
+   ],
+   "bind": "gauge.capCharge",
+   "labelIndex": 48
+  },
+  {
+   "id": "VLV_O2_MAIN",
+   "type": "valve",
+   "panel": "RIGHT_WALL",
+   "pos": [
+    -0.11,
+    0.06
+   ],
+   "size": 0.05,
+   "label": "O2 MAIN",
+   "states": [
+    "OPEN",
+    "SHUT"
+   ],
+   "bind": "life.o2Main",
+   "reach": 0.8,
+   "labelIndex": 49
+  },
+  {
+   "id": "VLV_O2_BKUP",
+   "type": "valve",
+   "panel": "RIGHT_WALL",
+   "pos": [
+    -0.03,
+    0.06
+   ],
+   "size": 0.05,
+   "label": "O2 BKUP",
+   "states": [
+    "SHUT",
+    "OPEN"
+   ],
+   "bind": "life.o2Backup",
+   "reach": 0.8,
+   "labelIndex": 50
+  },
+  {
+   "id": "SW_SCRUB",
+   "type": "toggle",
+   "panel": "RIGHT_WALL",
+   "pos": [
+    0.05,
+    0.06
+   ],
+   "label": "SCRUBBER",
+   "states": [
+    "A",
+    "B"
+   ],
+   "bind": "life.scrubber",
+   "reach": 0.8,
+   "labelIndex": 51
+  },
+  {
+   "id": "SW_CABIN_DUMP",
+   "type": "toggle_guarded",
+   "panel": "RIGHT_WALL",
+   "pos": [
+    0.12,
+    0.06
+   ],
+   "label": "CABIN DUMP",
+   "states": [
+    "NORM",
+    "DUMP"
+   ],
+   "bind": "life.cabinDump",
+   "reach": 0.8,
+   "note": "Red/black striped guard, safety-wired.",
+   "labelIndex": 52
+  },
+  {
+   "id": "GAUGE_CABIN_P",
+   "type": "gauge",
+   "panel": "RIGHT_WALL",
+   "pos": [
+    -0.1,
+    -0.06
+   ],
+   "size": 0.06,
+   "label": "CABIN kPa",
+   "sweep": [
+    -120,
+    120
+   ],
+   "bind": "gauge.cabinP",
+   "labelIndex": 53
+  },
+  {
+   "id": "GAUGE_O2",
+   "type": "gauge",
+   "panel": "RIGHT_WALL",
+   "pos": [
+    0,
+    -0.06
+   ],
+   "size": 0.06,
+   "label": "ppO2",
+   "sweep": [
+    -120,
+    120
+   ],
+   "bind": "gauge.ppO2",
+   "labelIndex": 54
+  },
+  {
+   "id": "GAUGE_CLNT_T",
+   "type": "gauge",
+   "panel": "RIGHT_WALL",
+   "pos": [
+    0.1,
+    -0.06
+   ],
+   "size": 0.06,
+   "label": "CLNT T",
+   "sweep": [
+    -120,
+    120
+   ],
+   "bind": "gauge.coolantT",
+   "labelIndex": 55
+  },
+  {
+   "id": "SW_CABIN_LT",
+   "type": "rotary",
+   "panel": "OVERHEAD",
+   "pos": [
+    -0.15,
+    0.02
+   ],
+   "size": 0.04,
+   "label": "CABIN LT",
+   "detents": [
+    30,
+    0,
+    -30
+   ],
+   "states": [
+    "OFF",
+    "RED",
+    "WHITE"
+   ],
+   "detentLabels": true,
+   "bind": "cabin.lights",
+   "reach": 0.75,
+   "initial": 1,
+   "labelIndex": 56,
+   "detentLabelIndices": [
+    57,
+    58,
+    59
+   ]
+  },
+  {
+   "id": "SW_FANS",
+   "type": "toggle",
+   "panel": "OVERHEAD",
+   "pos": [
+    -0.05,
+    0.02
+   ],
+   "label": "FANS",
+   "states": [
+    "OFF",
+    "ON"
+   ],
+   "bind": "life.fans",
+   "reach": 0.75,
+   "initial": 1,
+   "labelIndex": 60
+  },
+  {
+   "id": "SW_SUIT_O2",
+   "type": "toggle",
+   "panel": "OVERHEAD",
+   "pos": [
+    0.05,
+    0.02
+   ],
+   "label": "SUIT O2",
+   "states": [
+    "CABIN",
+    "SUIT"
+   ],
+   "bind": "life.suitO2",
+   "reach": 0.75,
+   "labelIndex": 61
+  },
+  {
+   "id": "BT_ALARM_SIL",
+   "type": "button",
+   "panel": "OVERHEAD",
+   "pos": [
+    0.15,
+    0.02
+   ],
+   "size": 0.03,
+   "label": "ALARM SIL",
+   "bind": "alarm.silence",
+   "reach": 0.75,
+   "labelIndex": 62
+  },
+  {
+   "id": "PATCH_KIT",
+   "type": "item",
+   "panel": "RIGHT_WALL",
+   "pos": [
+    0,
+    -0.2
+   ],
+   "size": 0.12,
+   "label": "HULL PATCH",
+   "bind": "item.patchKit",
+   "reach": 0.7,
+   "note": "Orange soft-sided pouch strapped to the wall below the panel; a patch disc + sealant gun. Runtime detaches PATCH_KIT_DISC when used.",
+   "labelIndex": 63
+  },
+  {
+   "id": "CO2_CART",
+   "type": "item",
+   "panel": "RIGHT_WALL",
+   "pos": [
+    0.13,
+    -0.18
+   ],
+   "size": 0.08,
+   "label": "LiOH SPARE",
+   "bind": "item.co2Cartridge",
+   "reach": 0.7,
+   "note": "Spare LiOH cartridge in a clip. Cylinder ~0.07 dia x 0.18 long.",
+   "labelIndex": 64
+  }
+ ],
+ "annunciators": [
+  {
+   "id": "ANN_PWR",
+   "panel": "GLARE",
+   "pos": [
+    -0.2,
+    0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "BUS FAULT",
+   "color": "amber",
+   "labelIndex": 65
+  },
+  {
+   "id": "ANN_CLNT",
+   "panel": "GLARE",
+   "pos": [
+    -0.12000000000000001,
+    0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "CLNT",
+   "color": "amber",
+   "labelIndex": 66
+  },
+  {
+   "id": "ANN_CABP",
+   "panel": "GLARE",
+   "pos": [
+    -0.04000000000000001,
+    0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "CABIN P",
+   "color": "red",
+   "labelIndex": 67
+  },
+  {
+   "id": "ANN_O2",
+   "panel": "GLARE",
+   "pos": [
+    0.03999999999999998,
+    0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "O2 LOW",
+   "color": "red",
+   "labelIndex": 68
+  },
+  {
+   "id": "ANN_CO2",
+   "panel": "GLARE",
+   "pos": [
+    0.12,
+    0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "CO2 HI",
+   "color": "amber",
+   "labelIndex": 69
+  },
+  {
+   "id": "ANN_HEAT",
+   "panel": "GLARE",
+   "pos": [
+    0.2,
+    0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "HEAT",
+   "color": "amber",
+   "labelIndex": 70
+  },
+  {
+   "id": "ANN_SENS",
+   "panel": "GLARE",
+   "pos": [
+    -0.2,
+    -0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "SENS BUS",
+   "color": "amber",
+   "labelIndex": 71
+  },
+  {
+   "id": "ANN_ARC",
+   "panel": "GLARE",
+   "pos": [
+    -0.12000000000000001,
+    -0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "ARC DET",
+   "color": "red",
+   "labelIndex": 72
+  },
+  {
+   "id": "ANN_FUEL",
+   "panel": "GLARE",
+   "pos": [
+    -0.04000000000000001,
+    -0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "PROP LO",
+   "color": "amber",
+   "labelIndex": 73
+  },
+  {
+   "id": "ANN_RAD",
+   "panel": "GLARE",
+   "pos": [
+    0.03999999999999998,
+    -0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "RAD",
+   "color": "amber",
+   "labelIndex": 74
+  },
+  {
+   "id": "ANN_LAUNCH",
+   "panel": "GLARE",
+   "pos": [
+    0.12,
+    -0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "LAUNCH DET",
+   "color": "red",
+   "labelIndex": 75
+  },
+  {
+   "id": "ANN_RWR",
+   "panel": "GLARE",
+   "pos": [
+    0.2,
+    -0.017
+   ],
+   "size": [
+    0.07,
+    0.028
+   ],
+   "label": "RADAR ILLUM",
+   "color": "amber",
+   "labelIndex": 76
+  }
+ ],
+ "cameras": [
+  {
+   "id": "PILOT",
+   "pos": [
+    0,
+    0.6,
+    0.4
+   ],
+   "target": [
+    0,
+    0,
+    -0.05
+   ],
+   "fov": 48,
+   "role": "face / upper body (primary body-language feed)"
+  },
+  {
+   "id": "WIDE",
+   "pos": [
+    0.48,
+    -0.55,
+    0.42
+   ],
+   "target": [
+    -0.05,
+    0.45,
+    -0.4
+   ],
+   "fov": 88,
+   "role": "over right shoulder: pilot + main panel + pedestal"
+  },
+  {
+   "id": "LEFT",
+   "pos": [
+    0.3,
+    0.38,
+    0.42
+   ],
+   "target": [
+    -0.55,
+    0.05,
+    -0.45
+   ],
+   "fov": 70,
+   "role": "left console + breaker wall + left arm"
+  },
+  {
+   "id": "RIGHT",
+   "pos": [
+    -0.3,
+    0.38,
+    0.42
+   ],
+   "target": [
+    0.55,
+    0.05,
+    -0.45
+   ],
+   "fov": 70,
+   "role": "right console + life-support wall + right arm"
+  }
+ ],
+ "lamps": [
+  {
+   "id": "FLOOD_L",
+   "pos": [
+    -0.42,
+    0.25,
+    0.32
+   ],
+   "kind": "spot",
+   "target": [
+    -0.4,
+    0.08,
+    -0.6
+   ]
+  },
+  {
+   "id": "FLOOD_R",
+   "pos": [
+    0.42,
+    0.25,
+    0.32
+   ],
+   "kind": "spot",
+   "target": [
+    0.4,
+    0.08,
+    -0.6
+   ]
+  },
+  {
+   "id": "PANEL",
+   "pos": [
+    0,
+    0.48,
+    0.05
+   ],
+   "kind": "spot",
+   "target": [
+    0,
+    0.66,
+    -0.33
+   ]
+  },
+  {
+   "id": "DOME",
+   "pos": [
+    0,
+    -0.25,
+    0.48
+   ],
+   "kind": "point"
+  },
+  {
+   "id": "PEDESTAL",
+   "pos": [
+    0,
+    0.3,
+    -0.5
+   ],
+   "kind": "point"
+  }
+ ],
+ "leakSites": [
+  {
+   "id": "LEAK_0",
+   "pos": [
+    -0.62,
+    0.3,
+    -0.1
+   ]
+  },
+  {
+   "id": "LEAK_1",
+   "pos": [
+    0.62,
+    0.3,
+    -0.1
+   ]
+  },
+  {
+   "id": "LEAK_2",
+   "pos": [
+    -0.55,
+    -0.35,
+    0.2
+   ]
+  },
+  {
+   "id": "LEAK_3",
+   "pos": [
+    0.55,
+    -0.35,
+    0.2
+   ]
+  },
+  {
+   "id": "LEAK_4",
+   "pos": [
+    0,
+    0.25,
+    0.52
+   ]
+  },
+  {
+   "id": "LEAK_5",
+   "pos": [
+    -0.4,
+    0.55,
+    0.3
+   ]
+  },
+  {
+   "id": "LEAK_6",
+   "pos": [
+    0.4,
+    0.55,
+    0.3
+   ]
+  },
+  {
+   "id": "LEAK_7",
+   "pos": [
+    0,
+    -0.6,
+    -0.3
+   ]
+  }
+ ],
+ "arcSites": [
+  {
+   "id": "LEFT_WALL",
+   "pos": [
+    -0.57,
+    0.02,
+    -0.38
+   ]
+  },
+  {
+   "id": "MAIN",
+   "pos": [
+    0,
+    0.7,
+    -0.52
+   ]
+  },
+  {
+   "id": "OVERHEAD",
+   "pos": [
+    0.18,
+    0.12,
+    0.43
+   ]
+  },
+  {
+   "id": "RIGHT_WALL",
+   "pos": [
+    0.57,
+    0.02,
+    -0.38
+   ]
+  }
+ ],
+ "sounds": [
+  {
+   "id": "PUMP",
+   "pos": [
+    0.55,
+    -0.3,
+    -0.7
+   ]
+  },
+  {
+   "id": "FANS",
+   "pos": [
+    0,
+    -0.4,
+    0.45
+   ]
+  },
+  {
+   "id": "ENGINE",
+   "pos": [
+    0,
+    -0.95,
+    -0.4
+   ]
+  },
+  {
+   "id": "AVIONICS",
+   "pos": [
+    0,
+    0.8,
+    -0.55
+   ]
+  }
+ ],
+ "windows": [
+  {
+   "id": "FWD_C",
+   "corners": [
+    [
+     -0.24,
+     0.8,
+     -0.02
+    ],
+    [
+     0.24,
+     0.8,
+     -0.02
+    ],
+    [
+     0.2,
+     0.7,
+     0.3
+    ],
+    [
+     -0.2,
+     0.7,
+     0.3
+    ]
+   ]
+  },
+  {
+   "id": "FWD_L",
+   "corners": [
+    [
+     -0.52,
+     0.68,
+     -0.04
+    ],
+    [
+     -0.29,
+     0.79,
+     -0.02
+    ],
+    [
+     -0.25,
+     0.68,
+     0.28
+    ],
+    [
+     -0.46,
+     0.58,
+     0.24
+    ]
+   ]
+  },
+  {
+   "id": "FWD_R",
+   "corners": [
+    [
+     0.29,
+     0.79,
+     -0.02
+    ],
+    [
+     0.52,
+     0.68,
+     -0.04
+    ],
+    [
+     0.46,
+     0.58,
+     0.24
+    ],
+    [
+     0.25,
+     0.68,
+     0.28
+    ]
+   ]
+  },
+  {
+   "id": "SIDE_L",
+   "corners": [
+    [
+     -0.63,
+     0.2,
+     0.02
+    ],
+    [
+     -0.63,
+     0.45,
+     0.02
+    ],
+    [
+     -0.6,
+     0.45,
+     0.24
+    ],
+    [
+     -0.6,
+     0.2,
+     0.24
+    ]
+   ]
+  },
+  {
+   "id": "SIDE_R",
+   "corners": [
+    [
+     0.63,
+     0.45,
+     0.02
+    ],
+    [
+     0.63,
+     0.2,
+     0.02
+    ],
+    [
+     0.6,
+     0.2,
+     0.24
+    ],
+    [
+     0.6,
+     0.45,
+     0.24
+    ]
+   ]
+  },
+  {
+   "id": "TOP",
+   "corners": [
+    [
+     -0.12,
+     0.4,
+     0.47
+    ],
+    [
+     0.12,
+     0.4,
+     0.47
+    ],
+    [
+     0.12,
+     0.62,
+     0.4
+    ],
+    [
+     -0.12,
+     0.62,
+     0.4
+    ]
+   ]
+  }
+ ],
+ "placards": [
+  {
+   "id": "PLACARD_DOCTRINE",
+   "text": "INTERIOR: CREW ONLY",
+   "near": "PEDESTAL",
+   "labelIndex": 77
+  },
+  {
+   "id": "PLACARD_TALLY",
+   "text": "CAM TALLY: NO SWITCH",
+   "near": "OVERHEAD",
+   "labelIndex": 78
+  },
+  {
+   "id": "PLACARD_STICK",
+   "text": "HC REMOVED SEV-DIR 7",
+   "near": "BLANK_PLATE_STICK",
+   "labelIndex": 79
+  },
+  {
+   "id": "PLACARD_O2",
+   "text": "O2 — NO OIL/GREASE",
+   "near": "RIGHT_WALL",
+   "labelIndex": 80
+  },
+  {
+   "id": "PLACARD_AI",
+   "text": "AI INTERPRETATION",
+   "near": "SCREEN_AI",
+   "labelIndex": 81
+  },
+  {
+   "id": "PLACARD_RAW",
+   "text": "RAW SENSOR",
+   "near": "SCREEN_MFD_L",
+   "labelIndex": 82
+  }
+ ],
+ "labelAtlas": {
+  "cols": 8,
+  "rows": 16,
+  "width": 2048,
+  "height": 1024,
+  "labels": [
+   {
+    "index": 0,
+    "owner": "SW_OVL_L",
+    "text": "AI OVLY",
+    "kind": "plate"
+   },
+   {
+    "index": 1,
+    "owner": "SW_OVL_C",
+    "text": "AI OVLY",
+    "kind": "plate"
+   },
+   {
+    "index": 2,
+    "owner": "GAUGE_PROP",
+    "text": "PROP %",
+    "kind": "plate"
+   },
+   {
+    "index": 3,
+    "owner": "GAUGE_ACCEL",
+    "text": "ACCEL G",
+    "kind": "plate"
+   },
+   {
+    "index": 4,
+    "owner": "GAUGE_CLOCK",
+    "text": "MET",
+    "kind": "plate"
+   },
+   {
+    "index": 5,
+    "owner": "GAUGE_ATT",
+    "text": "ATT RATE",
+    "kind": "plate"
+   },
+   {
+    "index": 6,
+    "owner": "BT_MWARN",
+    "text": "MASTER WARN",
+    "kind": "plate"
+   },
+   {
+    "index": 7,
+    "owner": "BT_MCAUT",
+    "text": "MASTER CAUT",
+    "kind": "plate"
+   },
+   {
+    "index": 8,
+    "owner": "SW_TRUST",
+    "text": "AI LATITUDE",
+    "kind": "plate"
+   },
+   {
+    "index": 9,
+    "owner": "SW_TRUST#0",
+    "text": "CONFIRM ALL",
+    "kind": "detent"
+   },
+   {
+    "index": 10,
+    "owner": "SW_TRUST#1",
+    "text": "CONFIRM WPNS",
+    "kind": "detent"
+   },
+   {
+    "index": 11,
+    "owner": "SW_TRUST#2",
+    "text": "CONFIRM LETHAL",
+    "kind": "detent"
+   },
+   {
+    "index": 12,
+    "owner": "SW_TRUST#3",
+    "text": "WPNS FREE",
+    "kind": "detent"
+   },
+   {
+    "index": 13,
+    "owner": "SW_TRUST#4",
+    "text": "AUTONOMOUS",
+    "kind": "detent"
+   },
+   {
+    "index": 14,
+    "owner": "SW_CONSENT",
+    "text": "WPN CONSENT",
+    "kind": "plate"
+   },
+   {
+    "index": 15,
+    "owner": "BT_CONFIRM",
+    "text": "CONFIRM",
+    "kind": "plate"
+   },
+   {
+    "index": 16,
+    "owner": "BT_DENY",
+    "text": "DENY",
+    "kind": "plate"
+   },
+   {
+    "index": 17,
+    "owner": "SW_BATT",
+    "text": "BATT",
+    "kind": "plate"
+   },
+   {
+    "index": 18,
+    "owner": "SW_BUS_TIE",
+    "text": "BUS TIE",
+    "kind": "plate"
+   },
+   {
+    "index": 19,
+    "owner": "SW_FUELCELL2",
+    "text": "FUEL CELL 2",
+    "kind": "plate"
+   },
+   {
+    "index": 20,
+    "owner": "SW_CAP_CHG",
+    "text": "PD CAP CHG",
+    "kind": "plate"
+   },
+   {
+    "index": 21,
+    "owner": "SW_SENS_BUS",
+    "text": "SENSOR BUS",
+    "kind": "plate"
+   },
+   {
+    "index": 22,
+    "owner": "SW_SENS_BUS#0",
+    "text": "A",
+    "kind": "detent"
+   },
+   {
+    "index": 23,
+    "owner": "SW_SENS_BUS#1",
+    "text": "B",
+    "kind": "detent"
+   },
+   {
+    "index": 24,
+    "owner": "SW_SENS_BUS#2",
+    "text": "X-TIE",
+    "kind": "detent"
+   },
+   {
+    "index": 25,
+    "owner": "BLANK_PLATE_THR",
+    "text": "THR REMOVED  SEV-DIR 7/41",
+    "kind": "plate"
+   },
+   {
+    "index": 26,
+    "owner": "VLV_CLNT_A",
+    "text": "CLNT LOOP A",
+    "kind": "plate"
+   },
+   {
+    "index": 27,
+    "owner": "VLV_CLNT_B",
+    "text": "CLNT LOOP B",
+    "kind": "plate"
+   },
+   {
+    "index": 28,
+    "owner": "SW_RAD_BYPASS",
+    "text": "RAD BYPASS",
+    "kind": "plate"
+   },
+   {
+    "index": 29,
+    "owner": "SW_HS_VENT",
+    "text": "H/SINK VENT",
+    "kind": "plate"
+   },
+   {
+    "index": 30,
+    "owner": "LVR_MANUAL_PUMP",
+    "text": "MANUAL CLNT PUMP",
+    "kind": "plate"
+   },
+   {
+    "index": 31,
+    "owner": "CB_RADAR",
+    "text": "RADAR",
+    "kind": "plate"
+   },
+   {
+    "index": 32,
+    "owner": "CB_IRST",
+    "text": "IRST",
+    "kind": "plate"
+   },
+   {
+    "index": 33,
+    "owner": "CB_OPT",
+    "text": "OPTICS",
+    "kind": "plate"
+   },
+   {
+    "index": 34,
+    "owner": "CB_LIDAR",
+    "text": "LIDAR",
+    "kind": "plate"
+   },
+   {
+    "index": 35,
+    "owner": "CB_COMMS",
+    "text": "COMMS",
+    "kind": "plate"
+   },
+   {
+    "index": 36,
+    "owner": "CB_PD",
+    "text": "PD LASER",
+    "kind": "plate"
+   },
+   {
+    "index": 37,
+    "owner": "CB_KKV",
+    "text": "KKV LNCH",
+    "kind": "plate"
+   },
+   {
+    "index": 38,
+    "owner": "CB_RCS",
+    "text": "RCS",
+    "kind": "plate"
+   },
+   {
+    "index": 39,
+    "owner": "CB_ENG",
+    "text": "ENG CTRL",
+    "kind": "plate"
+   },
+   {
+    "index": 40,
+    "owner": "CB_AVION",
+    "text": "AVIONICS",
+    "kind": "plate"
+   },
+   {
+    "index": 41,
+    "owner": "CB_LIFE",
+    "text": "LIFE SPT",
+    "kind": "plate"
+   },
+   {
+    "index": 42,
+    "owner": "CB_FANS",
+    "text": "CAB FANS",
+    "kind": "plate"
+   },
+   {
+    "index": 43,
+    "owner": "CB_PUMP_A",
+    "text": "CLNT PUMP A",
+    "kind": "plate"
+   },
+   {
+    "index": 44,
+    "owner": "CB_PUMP_B",
+    "text": "CLNT PUMP B",
+    "kind": "plate"
+   },
+   {
+    "index": 45,
+    "owner": "CB_HTR",
+    "text": "HEATERS",
+    "kind": "plate"
+   },
+   {
+    "index": 46,
+    "owner": "GAUGE_BUS_V",
+    "text": "BUS V",
+    "kind": "plate"
+   },
+   {
+    "index": 47,
+    "owner": "GAUGE_BUS_A",
+    "text": "BUS A",
+    "kind": "plate"
+   },
+   {
+    "index": 48,
+    "owner": "GAUGE_CAP",
+    "text": "PD CAP",
+    "kind": "plate"
+   },
+   {
+    "index": 49,
+    "owner": "VLV_O2_MAIN",
+    "text": "O2 MAIN",
+    "kind": "plate"
+   },
+   {
+    "index": 50,
+    "owner": "VLV_O2_BKUP",
+    "text": "O2 BKUP",
+    "kind": "plate"
+   },
+   {
+    "index": 51,
+    "owner": "SW_SCRUB",
+    "text": "SCRUBBER",
+    "kind": "plate"
+   },
+   {
+    "index": 52,
+    "owner": "SW_CABIN_DUMP",
+    "text": "CABIN DUMP",
+    "kind": "plate"
+   },
+   {
+    "index": 53,
+    "owner": "GAUGE_CABIN_P",
+    "text": "CABIN kPa",
+    "kind": "plate"
+   },
+   {
+    "index": 54,
+    "owner": "GAUGE_O2",
+    "text": "ppO2",
+    "kind": "plate"
+   },
+   {
+    "index": 55,
+    "owner": "GAUGE_CLNT_T",
+    "text": "CLNT T",
+    "kind": "plate"
+   },
+   {
+    "index": 56,
+    "owner": "SW_CABIN_LT",
+    "text": "CABIN LT",
+    "kind": "plate"
+   },
+   {
+    "index": 57,
+    "owner": "SW_CABIN_LT#0",
+    "text": "OFF",
+    "kind": "detent"
+   },
+   {
+    "index": 58,
+    "owner": "SW_CABIN_LT#1",
+    "text": "RED",
+    "kind": "detent"
+   },
+   {
+    "index": 59,
+    "owner": "SW_CABIN_LT#2",
+    "text": "WHITE",
+    "kind": "detent"
+   },
+   {
+    "index": 60,
+    "owner": "SW_FANS",
+    "text": "FANS",
+    "kind": "plate"
+   },
+   {
+    "index": 61,
+    "owner": "SW_SUIT_O2",
+    "text": "SUIT O2",
+    "kind": "plate"
+   },
+   {
+    "index": 62,
+    "owner": "BT_ALARM_SIL",
+    "text": "ALARM SIL",
+    "kind": "plate"
+   },
+   {
+    "index": 63,
+    "owner": "PATCH_KIT",
+    "text": "HULL PATCH",
+    "kind": "plate"
+   },
+   {
+    "index": 64,
+    "owner": "CO2_CART",
+    "text": "LiOH SPARE",
+    "kind": "plate"
+   },
+   {
+    "index": 65,
+    "owner": "LIGHT_ANN_PWR",
+    "text": "BUS FAULT",
+    "kind": "annunciator"
+   },
+   {
+    "index": 66,
+    "owner": "LIGHT_ANN_CLNT",
+    "text": "CLNT",
+    "kind": "annunciator"
+   },
+   {
+    "index": 67,
+    "owner": "LIGHT_ANN_CABP",
+    "text": "CABIN P",
+    "kind": "annunciator"
+   },
+   {
+    "index": 68,
+    "owner": "LIGHT_ANN_O2",
+    "text": "O2 LOW",
+    "kind": "annunciator"
+   },
+   {
+    "index": 69,
+    "owner": "LIGHT_ANN_CO2",
+    "text": "CO2 HI",
+    "kind": "annunciator"
+   },
+   {
+    "index": 70,
+    "owner": "LIGHT_ANN_HEAT",
+    "text": "HEAT",
+    "kind": "annunciator"
+   },
+   {
+    "index": 71,
+    "owner": "LIGHT_ANN_SENS",
+    "text": "SENS BUS",
+    "kind": "annunciator"
+   },
+   {
+    "index": 72,
+    "owner": "LIGHT_ANN_ARC",
+    "text": "ARC DET",
+    "kind": "annunciator"
+   },
+   {
+    "index": 73,
+    "owner": "LIGHT_ANN_FUEL",
+    "text": "PROP LO",
+    "kind": "annunciator"
+   },
+   {
+    "index": 74,
+    "owner": "LIGHT_ANN_RAD",
+    "text": "RAD",
+    "kind": "annunciator"
+   },
+   {
+    "index": 75,
+    "owner": "LIGHT_ANN_LAUNCH",
+    "text": "LAUNCH DET",
+    "kind": "annunciator"
+   },
+   {
+    "index": 76,
+    "owner": "LIGHT_ANN_RWR",
+    "text": "RADAR ILLUM",
+    "kind": "annunciator"
+   },
+   {
+    "index": 77,
+    "owner": "PLACARD_DOCTRINE",
+    "text": "INTERIOR: CREW ONLY",
+    "kind": "placard"
+   },
+   {
+    "index": 78,
+    "owner": "PLACARD_TALLY",
+    "text": "CAM TALLY: NO SWITCH",
+    "kind": "placard"
+   },
+   {
+    "index": 79,
+    "owner": "PLACARD_STICK",
+    "text": "HC REMOVED SEV-DIR 7",
+    "kind": "placard"
+   },
+   {
+    "index": 80,
+    "owner": "PLACARD_O2",
+    "text": "O2 — NO OIL/GREASE",
+    "kind": "placard"
+   },
+   {
+    "index": 81,
+    "owner": "PLACARD_AI",
+    "text": "AI INTERPRETATION",
+    "kind": "placard"
+   },
+   {
+    "index": 82,
+    "owner": "PLACARD_RAW",
+    "text": "RAW SENSOR",
+    "kind": "placard"
+   }
+  ]
+ }
+}
