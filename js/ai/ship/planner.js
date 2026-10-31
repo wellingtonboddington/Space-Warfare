@@ -134,10 +134,11 @@ function objectiveMetrics(ctx, cand, own, futures) {
       const w = Math.max(0.05, a.entropy / 3.3);
       let rMin = Infinity;
       for (const f of fut) for (let i = 0; i < own.length; i += 5) rMin = Math.min(rMin, len(sub(f[i].pos, own[i].pos)));
-      const gain = Math.min(2.5, (a.range / Math.max(20e3, rMin)) ** 2);
+      // SNR ∝ 1/R²: value grows with log of the SNR gain (diminishing returns), capped
+      const gain = Math.log2(1 + Math.min(4, (a.range / Math.max(25e3, rMin)) ** 2));
       num += w * gain; den += w;
     }
-    out.value = den ? Math.min(1, (num / den) / 2.5) : 0.4;
+    out.value = den ? Math.min(1, 0.25 + (num / den) / 2.32 * 0.6) : 0.4;
     out.standoff = mission.standoff ?? 70e3;
   } else if (mission.role === 'strike' || mission.role === 'raid' || mission.role === 'hunt') {
     // reach a launch window: range to the mission target inside [rMin, rMax] at some point

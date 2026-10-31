@@ -113,7 +113,8 @@ export function buildClassModels(rng, samples = 160) {
       albedoArea: fit(f.aa, 0.15), size: fit(f.size, 0.1),
       flare: f.flare.length ? fit(f.flare, 0.15) : null,
       emitter: a.emitter, tumble: a.tumble,
-      lcVar: a.tumble ? { mu: 0.45, sigma: 0.22 } : { mu: 0.05, sigma: 0.05 },
+      // stabilised ships still vary when they slew/burn — the light curve is suggestive, not decisive
+      lcVar: a.tumble ? { mu: 0.45, sigma: 0.25 } : { mu: 0.09, sigma: 0.14 },
     };
   }
   return models;

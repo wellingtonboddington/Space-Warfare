@@ -22,21 +22,30 @@ export class ObjectiveEvaluator {
     this.result = null;
     this.compromisedAt = null;
     this.departure = new Map();
+    // the referee freezes truth at each relay so the file is graded on what was knowable then
+    session.playerAgent?.on((type, d) => { if (type === 'relay') d.truth = this.snapshotTruth(); });
   }
 
-  /** Grade a relayed track file against truth at the time it was sent. */
-  gradeRelay(rec) {
-    const world = this.s.world;
+  /** Capture truth at the moment a relay is transmitted (graded later). */
+  snapshotTruth() {
     const player = this.s.playerShip;
-    const contacts = [...world.entities.values()].filter((e) => e !== player && e.kind === 'ship' && e.faction !== player.faction && !e.structure);
+    return [...this.s.world.entities.values()].filter((e) => e !== player && e.kind === 'ship' && e.faction !== player.faction && !e.structure)
+      .map((e) => ({ id: e.id, name: e.name, family: truthFamily(e), pos: e.pos.slice(), playerPos: player.pos.slice() }));
+  }
+
+  /** Grade a relayed track file against truth AT THE TIME IT WAS SENT. */
+  gradeRelay(rec) {
+    const player = this.s.playerShip;
+    const truth = rec.truth ?? this.snapshotTruth();
+    const contacts = truth.map((x) => ({ ...x, pos: x.pos }));
     let correct = 0;
     const rows = [];
     for (const e of contacts) {
-      const fam = truthFamily(e);
+      const fam = e.family;
       // the snapshot entry whose believed position is nearest this object's true position
       let best = null, bd = Infinity;
       for (const s of rec.snapshot) { if (!s.pos) continue; const d = len(sub(s.pos, e.pos)); if (d < bd) { bd = d; best = s; } }
-      const matched = best && bd < Math.max(25e3, 0.15 * len(sub(e.pos, player.pos)));
+      const matched = best && bd < Math.max(25e3, 0.15 * len(sub(e.pos, e.playerPos ?? player.pos)));
       const ok = matched && best.family === fam && best.pFamily >= (this.o.classifyThreshold ?? 0.8);
       if (ok) correct++;
       rows.push({ truth: fam, name: e.name, reported: matched ? best.family : null, p: matched ? best.pFamily : null, label: matched ? best.label : null, ok: !!ok });

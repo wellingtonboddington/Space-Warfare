@@ -173,6 +173,7 @@ export class ShipAgent {
         { name: 'survival', value: m.pSurvive, curve: Curves.power(1 + 4 * tr.caution), note: `P(survive)=${m.pSurvive.toFixed(2)}` },
         { name: 'objective', value: m.obj.value, curve: Curves.floor(Curves.linear(), 0.08), weight: 0.85 },
         { name: 'fuel', value: m.dvFrac, curve: Curves.falling(0.02, 0.5 + 0.3 * (1 - tr.caution)), weight: 0.7 },
+        { name: 'mission Δv budget', value: (ship.deltaVRemaining() - (c.dv ? len(c.dv) : 0) - (this.mission.reserveDv ?? 250)) / Math.max(1, (this._dv0 ??= ship.deltaVRemaining()) - (this.mission.reserveDv ?? 250)), curve: Curves.rising(0.15, 0.55), weight: c.kind === 'evade' ? 0.2 : 0.75 },
         { name: 'reserve after burn', value: ship.deltaVRemaining() - (c.dv ? len(c.dv) : 0), curve: Curves.rising((this.mission.reserveDv ?? 250) * 0.7, (this.mission.reserveDv ?? 250) * 1.5), weight: c.kind === 'evade' ? 0.3 : 0.9 },
         { name: 'pilot g-load', value: m.gLoad / tol, curve: Curves.falling(0.5, 1.15), weight: 0.4 + 0.5 * tr.warmth },
         { name: 'stealth', value: (c.dv ? m.burnT : 0) * (1 - mind.selfExposure), curve: Curves.falling(0, 25), weight: stealthW },
