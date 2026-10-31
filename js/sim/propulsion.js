@@ -56,6 +56,7 @@ export class AttitudeControl {
   }
   step(dt) {
     const s = this.ship, A = s.spec.attitude, I = s.inertia;
+    if (s.passive || !s.alive) { this.torque = [0, 0, 0]; this.errorAngle = 0; return this.torque; } // decoys tumble; wrecks drift
     const auth = this.authority();
     const maxAcc = A.maxAccel * auth;
     let wDes = [0, 0, 0];

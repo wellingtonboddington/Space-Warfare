@@ -74,7 +74,7 @@ export class SensorSuite {
     const scene = irScene(ship, spec, world, spec.gimbal ? pointing : null);
     let dets;
     let frame = null;
-    if (this.image) {
+    if (this.image && !spec.analyticOnly) {
       frame = renderFocalPlane(ship, spec, world, scene, this.rng);
       dets = cfarDetect(frame, spec, scene);
     } else dets = analyticDetect(spec, scene, this.rng);
@@ -95,6 +95,7 @@ export class SensorSuite {
       this.measurements.push(m);
     }
     const store = { t, sensor: spec.component, name: spec.name ?? 'IRST', W: spec.pixels[0], H: spec.pixels[1], basis: scene.basis, fovHalf: spec.fovHalf, frame, dets: meas };
+    if (spec.das) return; // DAS feeds the tracker only (no raw page of its own)
     if (spec.component === 'telescope') this.raw.tele = store; else this.raw.ir = store;
   }
 

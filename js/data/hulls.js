@@ -18,6 +18,12 @@ const IRST_BASE = {
   nei: 4.0e-14,   // W/m² noise-equivalent irradiance per frame (MWIR band, cooled HgCdTe class)
   frameHz: 5, pixels: [128, 96], bands: ['MWIR', 'LWIR'],
 };
+// Distributed aperture system: six small staring IR cameras (one per face) for full-sphere
+// situational awareness. Far less sensitive than the main IRST, never shown as a raw frame.
+const DAS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].map((b, i) => ({
+  type: 'irst', component: 'irst', name: `DAS-${i}`, boresight: b, fovHalf: 50 * DEG, gimbal: false,
+  aperture: 0.035, nei: 1.6e-13, frameHz: 1, pixels: [64, 48], bands: ['MWIR', 'LWIR'], analyticOnly: true, das: true,
+}));
 const OPTICS_BASE = {
   type: 'optical', component: 'optics', boresight: [0, 1, 0], fovHalf: 1.2 * DEG, gimbal: false,
   aperture: 0.07, magLimit: 11.5, frameHz: 4, pixels: [256, 192],
@@ -54,7 +60,7 @@ export const INTERCEPTOR = {
     rcs: [22, 4.5, 60],               // radar cross section (m²) viewed along body x, y, z
     absorptivity: 0.35, emissivity: 0.6,
   },
-  sensors: [IRST_BASE, OPTICS_BASE, RADAR_BASE],
+  sensors: [IRST_BASE, ...DAS, OPTICS_BASE, RADAR_BASE],
   weapons: [],
   hitpointsScale: 1.0,
   comms: { type: 'rf', relayRate: 2e5 }, // bits/s tactical relay
@@ -129,7 +135,7 @@ export const GUNSHIP = {
   shielding: 'whipple',
   signature: { area: [55, 16, 130], rcs: [180, 30, 400], absorptivity: 0.35, emissivity: 0.65 },
   sensors: [
-    { ...IRST_BASE, aperture: 0.2, nei: 1.5e-14 },
+    { ...IRST_BASE, aperture: 0.2, nei: 1.5e-14 }, ...DAS,
     { ...RADAR_BASE, peakPower: 25e3, apertureArea: 1.8, maxRange: 900e3, fovHalf: 60 * DEG },
   ],
   weapons: [
@@ -150,7 +156,7 @@ export const HAULER = {
   life: { cabinVolume: 10, cabinPressure: 70e3, o2Main: 30, o2Backup: 10, lioh: 3 },
   shielding: 'whipple',
   signature: { area: [220, 32, 230], rcs: [900, 60, 950], absorptivity: 0.3, emissivity: 0.55 },
-  sensors: [{ ...RADAR_BASE, peakPower: 2e3, apertureArea: 0.2, fovHalf: 80 * DEG }],
+  sensors: [...DAS, { ...RADAR_BASE, peakPower: 2e3, apertureArea: 0.2, fovHalf: 80 * DEG }],
   weapons: [], civilian: true,
   comms: { type: 'rf', relayRate: 1e5 },
 };

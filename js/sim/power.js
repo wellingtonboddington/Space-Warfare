@@ -90,7 +90,12 @@ export class PowerSystem {
         if (load === 'heaters') w = ship.thermal ? ship.thermal.heaterDemandW() : 0;
         if (load === 'fans' && I.get('life.fans') !== 1) w = 0;
         if (load === 'pd' && I.get('power.capCharge') === 1 && this.capJ < this.capMaxJ) {
-          this.capChargeW = Math.min(30e3, (this.capMaxJ - this.capJ) / dt);
+          // Charge controller: only the bus's spare capacity (plus a share of a healthy battery) —
+          // it never browns out the bus. Ships with a reactor charge fast; others trickle.
+          const busSrc = (spec.reactorW ?? 0) + (fc[1] && I.get('power.fuelCell2') === 1 ? fc[1] : 0) + (I.get('power.busTie') === 1 ? (fc[0] ?? 0) : 0);
+          const battShare = battOn && this.batteryFraction() > 0.5 ? spec.battery.maxW * 0.4 : 0;
+          const spare = Math.max(0, busSrc + battShare - (this._lastDemandB ?? 3000));
+          this.capChargeW = Math.min(30e3, spare, (this.capMaxJ - this.capJ) / dt);
           w += this.capChargeW;
         } else if (load === 'pd') this.capChargeW = 0;
       } else if (load === 'pd') this.capChargeW = 0;
@@ -102,6 +107,7 @@ export class PowerSystem {
       if (bus === 'X') { dem.A += w / 2; dem.B += w / 2; } else dem[bus] += w;
     }
     this.demand = dem;
+    this._lastDemandB = dem.B - (this.capChargeW ?? 0);
 
     // ---- solve buses (tie pools both)
     const tied = I.get('power.busTie') === 1;

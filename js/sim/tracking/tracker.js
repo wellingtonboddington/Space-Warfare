@@ -58,6 +58,21 @@ function fState(x, t, dt) {
   return [...p, ...v];
 }
 
+/** State-transition Jacobian over a short dt, using the point-mass gravity gradient at x. */
+function transition(x, dt) {
+  const r = Math.hypot(x[0], x[1], x[2]), r3 = r * r * r, mu = MU_MOON;
+  const u = [x[0] / r, x[1] / r, x[2] / r];
+  const G = [0, 1, 2].map((i) => [0, 1, 2].map((j) => (-mu / r3) * ((i === j ? 1 : 0) - 3 * u[i] * u[j])));
+  const F = eye(N);
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    F[i][j] += 0.5 * G[i][j] * dt * dt;
+    F[i][j + 3] = (i === j ? dt : 0) + G[i][j] * dt * dt * dt / 6;
+    F[i + 3][j] = G[i][j] * dt;
+    F[i + 3][j + 3] = (i === j ? 1 : 0) + 0.5 * G[i][j] * dt * dt;
+  }
+  return F;
+}
+
 /** Measurement function: predicted (light-time corrected) observables for a state. */
 function hMeas(x, m, e1, e2) {
   const p = [x[0], x[1], x[2]], v = [x[3], x[4], x[5]];
@@ -155,6 +170,14 @@ export class Track {
     let s = 0; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) s += u[i] * P[i][j] * u[j];
     return Math.sqrt(Math.max(0, s));
   }
+  /** 1σ angular (cross-LOS) uncertainty as seen from `from` — excludes the range component. */
+  angularSigma(from) {
+    const { x, P } = this.moments();
+    const d = sub([x[0], x[1], x[2]], from), r = len(d), u = scale(d, 1 / r);
+    let tr = 0, uPu = 0;
+    for (let i = 0; i < 3; i++) { tr += P[i][i]; for (let j = 0; j < 3; j++) uPu += u[i] * P[i][j] * u[j]; }
+    return Math.sqrt(Math.max(0, (tr - uPu) / 2)) / Math.max(1, r);
+  }
   velSigma() { const { P } = this.moments(); return Math.sqrt((P[3][3] + P[4][4] + P[5][5]) / 3); }
   /** Range distribution summary from an observer: mixture of log-normal-ish components. */
   rangeSummary(from) {
@@ -180,6 +203,27 @@ export class Track {
     const flareRecent = t - this.lastFlareT < 6;
     const sa = flareRecent ? THRUST_ACCEL_NOISE : this.accelNoise;
     const Q = dt > 0 ? processNoise(dt, sa) : null;
+    if (Math.abs(dt) <= 2) {
+      // Short step: tight components propagate the mean through full gravity and the covariance
+      // through the linearised transition (gravity-gradient Jacobian) — ~20× cheaper than cubature.
+      // Wide components (passive range hypotheses tens of km deep) keep the cubature propagation:
+      // across that spread the curvature of gravity biases a linearised mean.
+      for (const c of this.comps) {
+        const wide = c.P[0][0] + c.P[1][1] + c.P[2][2] > 3 * 4e3 * 4e3;
+        if (wide) {
+          const pts = sigmaPoints(c.x, c.P);
+          if (pts) { const prop = pts.map((p) => fState(p, this.t, dt)); c.x = meanOf(prop); c.P = symmetrize(covOf(prop, c.x, Q)); continue; }
+        }
+        const F = transition(c.x, dt);
+        c.x = fState(c.x, this.t, dt);
+        let P = matMul(matMul(F, c.P), transpose(F));
+        if (Q) P = P.map((r, i) => r.map((v, j) => v + Q[i][j]));
+        c.P = symmetrize(P);
+      }
+      this.t = t;
+      if (dt > 0) this.accelNoise = BASE_ACCEL_NOISE + (this.accelNoise - BASE_ACCEL_NOISE) * Math.exp(-dt / 20);
+      return;
+    }
     for (const c of this.comps) {
       const pts = sigmaPoints(c.x, c.P);
       if (!pts) { c.P = symmetrize(c.P.map((r, i) => r.map((v, j) => v + (i === j ? 1 : 0)))); continue; }
@@ -306,6 +350,20 @@ export class Track {
       out.push({ t, pos: [m[0], m[1], m[2]], vel: [m[3], m[4], m[5]], sigma: Math.sqrt(Math.max(0, (C[0][0] + C[1][1] + C[2][2]) / 3)) });
       pts = pts.map((p) => fState(p, t, step));
       t += step;
+    }
+    return out;
+  }
+
+  /** Cheap forecast: propagate the mean only; σ grows as √(σp² + (σv·τ)²). For threat CPA. */
+  forecastMean(t0, horizon, step = 4) {
+    const { x } = this.moments();
+    const sp = this.posSigma(), sv = this.velSigma();
+    const p = [x[0], x[1], x[2]], v = [x[3], x[4], x[5]];
+    const out = [];
+    for (let k = 0, t = t0; k <= Math.ceil(horizon / step); k++, t += step) {
+      const tau = t - t0;
+      out.push({ t, pos: p.slice(), vel: v.slice(), sigma: Math.sqrt(sp * sp + (sv * tau) ** 2) });
+      rk4Step(p, v, t, step, null, null);
     }
     return out;
   }
@@ -493,7 +551,7 @@ export class Tracker {
       const pa = a.pos(), pb = b.pos();
       const ua = norm(sub(pa, o)), ub = norm(sub(pb, o));
       const ra = len(sub(pa, o)), rb = len(sub(pb, o));
-      const sAng = Math.sqrt((a.posSigma() / ra) ** 2 + (b.posSigma() / rb) ** 2 + (3e-4) ** 2);
+      const sAng = Math.sqrt(a.angularSigma(o) ** 2 + b.angularSigma(o) ** 2 + (3e-4) ** 2);
       const ang = Math.acos(Math.max(-1, Math.min(1, dot(ua, ub))));
       if (ang > 4 * sAng) continue;
       const sR = Math.hypot(a.rangeSigma(o), b.rangeSigma(o)) + 500;

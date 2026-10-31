@@ -16,7 +16,9 @@ const CFAR_K = 5.5;          // detection threshold (σ)
 /** Sensor camera basis in world frame. */
 export function sensorBasis(ship, sensor, pointing = null) {
   const fwd = pointing ? norm(pointing) : norm(qRotate(ship.q, sensor.boresight));
-  const upHint = Math.abs(dot(fwd, norm(ship.pos))) < 0.95 ? norm(ship.pos) : norm(qRotate(ship.q, [0, 0, 1]));
+  // first candidate "up" that is not (nearly) parallel to the boresight
+  const hints = [norm(ship.pos), norm(qRotate(ship.q, [0, 0, 1])), norm(qRotate(ship.q, [1, 0, 0]))];
+  const upHint = hints.find((h) => Math.abs(dot(fwd, h)) < 0.9) ?? hints[2];
   const right = norm(cross(fwd, upHint));
   const up = cross(right, fwd);
   return { fwd, right, up };
