@@ -120,7 +120,20 @@ function collectStats(root, name) {
         for (let i = 0; i < c.count; i += step) for (let k = 0; k < 3; k++) { const v = c.getComponent(i, k); if (v < cmin[k]) cmin[k] = v; if (v > cmax[k]) cmax[k] = v; }
       }
       if (o.morphTargetDictionary && Object.keys(o.morphTargetDictionary).length) morphs[o.name] = Object.keys(o.morphTargetDictionary);
-      if (o.isSkinnedMesh) skins.push({ mesh: o.name, bones: o.skeleton.bones.map((b) => b.name) });
+      if (o.isSkinnedMesh && !skins.length) {
+        // bone-axis check: each bone's local +Y should point at its (single) child joint, so arm IK works
+        let worst = 0, worstName = '';
+        for (const b of o.skeleton.bones) {
+          const kids = b.children.filter((c) => c.isBone);
+          if (kids.length !== 1 || b.name === 'root') continue;
+          const p = new THREE.Vector3(), q = new THREE.Vector3();
+          b.getWorldPosition(p); kids[0].getWorldPosition(q);
+          const yAxis = new THREE.Vector3(0, 1, 0).transformDirection(b.matrixWorld);
+          const ang = THREE.MathUtils.radToDeg(yAxis.angleTo(q.sub(p).normalize()));
+          if (ang > worst) { worst = ang; worstName = b.name; }
+        }
+        skins.push({ mesh: o.name, bones: o.skeleton.bones.map((b) => b.name), boneAxisWorstDeg: +worst.toFixed(2), boneAxisWorst: worstName });
+      } else if (o.isSkinnedMesh) skins.push({ mesh: o.name, bones: o.skeleton.bones.map((b) => b.name) });
       const nm = o.name.startsWith('SCREEN_') || o.name.startsWith('LABEL_') || o.name.startsWith('LIGHT_ANN_') || o.name.startsWith('DECAL_');
       if (nm && g.attributes.uv) {
         const a = g.attributes.uv; let u0 = 9, u1 = -9, v0 = 9, v1 = -9;
@@ -253,8 +266,8 @@ window.runView = async (cfg) => {
               if (k in o.morphTargetDictionary) o.morphTargetInfluences[o.morphTargetDictionary[k]] = v;
           }
         });
-        const ua = root.getObjectByName('upper_arm.R'); if (ua) ua.rotateX(-0.9);
-        const fa = root.getObjectByName('forearm.R'); if (fa) fa.rotateX(-0.6);
+        const ua = root.getObjectByName('upper_armR'); if (ua) ua.rotateX(-0.9);
+        const fa = root.getObjectByName('forearmR'); if (fa) fa.rotateX(-0.6);
         const hd = root.getObjectByName('head'); if (hd) hd.rotateZ(0.35);
       } });
     }
@@ -310,7 +323,7 @@ for (const [name, view] of Object.entries(VIEWS)) {
   if (errors.length || !report) { failed++; console.log(`✗ ${name}: ${errors.join(' | ')}`); continue; }
   reports[name] = report;
   const morphs = Object.entries(report.morphs).map(([k, v]) => `${k}[${v.length}: ${v.join(',')}]`).join(' ');
-  const skins = report.skins.map((s) => `${s.mesh}(${s.bones.length} bones)`).join(' ');
+  const skins = report.skins.map((s) => `${s.mesh}(${s.bones.length} bones${s.boneAxisWorst ? `, bone +Y vs child dir worst ${s.boneAxisWorstDeg}deg @${s.boneAxisWorst}` : ""})`).slice(0, 2).join(" ");
   console.log(`✓ ${name}: ${report.tris} tris${report.combinedTris ? ` (with chassis ${report.combinedTris})` : ''}, ${report.nodes.length} nodes, ` +
     `COLOR_0 on all meshes: ${report.noColor.length === 0 ? 'yes' : 'NO -> ' + report.noColor.slice(0, 8).join(',')}, ` +
     `range R${report.colorMin[0]}..${report.colorMax[0]} G${report.colorMin[1]}..${report.colorMax[1]} B${report.colorMin[2]}..${report.colorMax[2]}`);

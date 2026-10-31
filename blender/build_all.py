@@ -68,6 +68,8 @@ def build_asset(name, preview=True):
     m = dict(info.get('masks', {}))
     occl = [o for o in core.mesh_objects() if not o.name.startswith('DECAL_')]
     masks.bake(objs=own_mesh, occluders=occl, **m)
+    if info.get('post_masks'):
+        info['post_masks']()
     t2 = time.time()
     os.makedirs(CACHE, exist_ok=True)
     # finished scene (masks baked) for QA renders; the chassis copy is also the base scene for the kits

@@ -201,7 +201,8 @@ def camera(name, loc, target, fov_v_deg, parent=None, up=UP, clip=(0.02, 4000.0)
 # ----------------------------------------------------------------------------------------------
 def apply_all_modifiers(objs=None):
     """Bake every modifier stack into plain mesh data (one depsgraph evaluation for the whole scene)."""
-    objs = [o for o in (objs if objs is not None else mesh_objects()) if o.type == "MESH" and len(o.modifiers)]
+    objs = [o for o in (objs if objs is not None else mesh_objects()) if o.type == "MESH" and len(o.modifiers)
+            and not any(m.type == "ARMATURE" for m in o.modifiers) and not o.data.shape_keys]   # skinned / morphs stay live
     if not objs:
         return
     dg = bpy.context.evaluated_depsgraph_get()
