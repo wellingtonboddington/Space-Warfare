@@ -14,6 +14,8 @@ import { LifeSupport } from './lifesupport.js';
 import { Engine, AttitudeControl, Autopilot } from './propulsion.js';
 import { HistoryBuffer } from './history.js';
 import { KKV_TYPES } from '../data/hulls.js';
+import { pdStep } from './weapons/pdlaser.js';
+import { killShip } from './damage.js';
 
 let SHIP_SEQ = 0;
 
@@ -160,6 +162,9 @@ export class Ship {
     this.autopilot.accountDelivered(aThrust, dt);
     if (this.propellantLeak > 0) this.consumePropellant(this.propellantLeak * dt);
     this.updateMass();
+    if (this.pd.length) pdStep(this, world, dt, this._pdRng ??= world.rng.stream(`pd-${this.id}`));
+    // Structural limit: a badly damaged keel can fail under thrust
+    if (F > 0 && this.componentHealth('keel') < 0.25 && aThrust > 3) killShip(world, this, 'structural', { component: 'keel', underThrust: true });
   }
 
   /** Emission/signature snapshot recorded into history (what remote sensors will see, light-lagged). */

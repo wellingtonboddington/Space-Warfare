@@ -104,7 +104,9 @@ export class KKV {
       this.q = qLookNose(this.aimDir, [0, 0, 1]);
       if (this.boostLeft <= 0) { this.phase = 'coast'; world.events.emit(t, 'kkv.burnout', { kkv: this.id }); }
     } else if (this.phase === 'coast' || this.phase === 'terminal') {
-      const look = this._seek(world, t);
+      // Seeker shutter opens for the terminal phase (last ~35 s of the planned flight)
+      this.seekerOpen = age > Math.max(this.ejectTime + this.spec.boost.burnTime + 2, this.tGoPlanned - 35);
+      const look = this.seekerOpen ? this._seek(world, t) : null;
       if (look && this.divertLeft > 0 && this.spec.pn > 0) {
         this.phase = 'terminal';
         // Proportional navigation: a = N · Vc · (Ω × û), Ω = (r × v_rel)/|r|²
