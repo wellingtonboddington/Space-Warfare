@@ -243,3 +243,84 @@ export function cwApproach(own, tgt, standoff, T) {
   const v0 = cwTargetVelocity([0, 0, 0], aim, n, T);
   return fromLVLH(rel.frame, v0);
 }
+
+// =====================================================================================
+// PUBLIC, POV-AGNOSTIC PLANNING INTERFACE
+// =====================================================================================
+// The ship agent is ONE consumer of this. The AI-POV intent console (Pass 1) and the Pass 2
+// "flight director" (player sets a goal, inspects/adjusts/commits AI-generated plans) call the same
+// function. It returns PHYSICAL COSTS ONLY (computed from the given belief source); PREFERENCES —
+// how much survival matters versus fuel versus the objective — live in whoever chooses (the
+// agent's personality-weighted utility, or the player's judgement).
+
+/**
+ * @typedef {object} PlanCandidate
+ * @property {string} key, label, kind        'coast'|'evade'|'close'|'attack'|'open'|'station'|<custom>
+ * @property {?string} target                 track id the plan is relative to
+ * @property {?number[]} dv                   inertial Δv vector (m/s), null for coast
+ * @property {number} deltaV                  |Δv| (m/s)
+ * @property {number} slewTime, burnTime, timeToExecute   seconds (slew + burn, as the autopilot would fly it)
+ * @property {number} pSurvive                Monte-Carlo survival over the horizon (KKV corrections + time in armed envelopes)
+ * @property {number} pSurviveKKV             survival against tracked inbound projectiles only
+ * @property {number} armedExposure           integrated time-weighted presence inside hostile weapon envelopes
+ * @property {number} sensorExposure          burn-seconds visible to hostiles not already holding us (plume is unmissable)
+ * @property {?number} pKillEst               for attack geometry: estimated single-shot Pk at the best launch point on the plan
+ * @property {?number} approachSpeed          closing speed at closest approach to `target` (m/s)
+ * @property {?number} cpaTarget, tCpaTarget  closest approach to `target` (m, s)
+ * @property {number} objective               goal-geometry score 0..1 (role-specific; see objectiveMetrics)
+ * @property {number} dvFrac, gLoad, dvAfter  fuel fraction, peak g, Δv remaining afterwards
+ * @property {Array<{t,pos,vel}>} trajectory  own predicted path (for display)
+ */
+
+/**
+ * Generate and evaluate candidate manoeuvres for `ship` given a belief source and a goal.
+ * @param {Ship} ship
+ * @param {ShipMind} mind      belief (tracks, assessments) — never ground truth
+ * @param {object} goal        mission-shaped: {role, targetFamily?, targetTrackId?, standoff?, launchWindow?, protectId?}
+ * @param {object} [constraints] {samples=5, maxDv, extra: [candidate…] (e.g. a player- or order-specified plan), rng, t, targetTrack}
+ * @returns {{candidates: PlanCandidate[], coast: PlanCandidate, t:number}}
+ */
+export function generateCandidates(ship, mind, goal, constraints = {}) {
+  const t = constraints.t ?? ship.world.t;
+  const rng = constraints.rng ?? ship.world.rng.stream(`planner-${ship.id}-${Math.floor(t)}`);
+  const futures = sampleTrackFutures(mind, t, constraints.samples ?? 5, rng);
+  const targetTrack = constraints.targetTrack ?? (goal.targetTrackId ? mind.assess.get(goal.targetTrackId) : null);
+  const ctx = { ship, mind, t, futures, mission: goal, targetTrack, orderedCandidate: null };
+  let cands = candidates(ctx);
+  for (const x of constraints.extra ?? []) if (x) cands.push(x);
+  if (constraints.maxDv !== undefined) cands = cands.filter((c) => !c.dv || len(c.dv) <= constraints.maxDv);
+  const dvRem = ship.deltaVRemaining();
+  const out = cands.map((c) => {
+    const m = evaluate(ctx, c);
+    const tgtFut = c.target ? futures.get(c.target) : targetTrack ? futures.get(targetTrack.trackId) : null;
+    let cpaT = null, approach = null, pKillEst = null;
+    if (tgtFut) {
+      const cc = cpa(tgtFut[0], m.own);
+      cpaT = cc;
+      const i = Math.min(cc.i ?? 0, m.own.length - 1);
+      approach = len(sub(tgtFut[0][i].vel, m.own[i].vel));
+      if (ship.kkvRemaining > 0) {
+        // best launch point along the plan: range in the window, uncertainty growth over the KKV flight
+        const tr = mind.track(c.target ?? targetTrack.trackId);
+        const sp = tr ? tr.posSigma() : 5e3, sv = tr ? tr.velSigma() : 50;
+        let best = 0;
+        for (let k = 0; k < m.own.length; k += 3) {
+          const R = len(sub(tgtFut[0][k].pos, m.own[k].pos));
+          const tof = R / 600;
+          best = Math.max(best, kkvHitProb(Math.hypot(sp, sv * tof) * 1.3, tof));
+        }
+        pKillEst = best;
+      }
+    }
+    return {
+      key: c.key, label: c.label, kind: c.kind, target: c.target ?? null, dv: c.dv ?? null,
+      deltaV: c.dv ? len(c.dv) : 0, slewTime: m.slew, burnTime: m.burnT, timeToExecute: m.slew + m.burnT,
+      pSurvive: m.pSurvive, pSurviveKKV: m.pSurviveKKV, armedExposure: m.exposure,
+      sensorExposure: (c.dv ? m.burnT : 0) * (1 - mind.selfExposure), pKillEst,
+      approachSpeed: approach, cpaTarget: cpaT?.d ?? null, tCpaTarget: cpaT?.t ?? null,
+      objective: m.obj.value, dvFrac: m.dvFrac, gLoad: m.gLoad, dvAfter: dvRem - (c.dv ? len(c.dv) : 0),
+      trajectory: m.own, perTrack: m.perTrack, _metrics: m, _cand: c,
+    };
+  });
+  return { candidates: out, coast: out.find((x) => x.kind === 'coast'), t };
+}

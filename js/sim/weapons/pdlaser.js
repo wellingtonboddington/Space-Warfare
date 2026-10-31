@@ -89,7 +89,7 @@ function applyLaser(world, src, tgt, Pdel, irr, dt, rng) {
       }
     }
     if (irr > ABLATION_I) e.ablationAccel = add(e.ablationAccel ?? [0, 0, 0], scale(tgt.u, (CM * Pabs) / e.mass));
-    e.absorb(Pabs * dt, world, t, rng, tgt.u);
+    e.absorb(Pabs * dt, world, t, rng, tgt.u, src.id);
     return;
   }
   if (e.kind === 'ship' && e.alive) {

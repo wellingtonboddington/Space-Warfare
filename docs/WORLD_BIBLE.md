@@ -81,3 +81,34 @@ carries memory across the thread of identities. (Pass 1 has the data model only.
 - Vacuum does not burn. Damage shows as arcing, venting (gas and flash-frozen ice crystals), spall and debris.
   The pressurised cabin is the only place with air.
 - A KKV hit on an Interceptor is effectively instant death. There are no health bars.
+
+## Scale of the war [owner addendum — see ADDENDA.md for full text]
+Industrial-scale war that scales with the same exponential curve as everything else. Early
+campaigns lose thousands per major engagement with fleets of hundreds. Middle campaigns peak at
+fleets of thousands and casualties in the millions. Late campaigns wind down: resource-obsoleting
+technology makes continued fighting look irrational, and an armistice follows as a mutual
+stand-down, not a surrender. One faction's leadership is reputationally invested in winning
+outright. Both face escalating media scrutiny and anti-war movements. Characters inside the early
+and middle campaigns believe the war is total and permanent. Only the player feels it shrink.
+**Scale vs. intimacy:** encounters stay small and personal. Scale is conveyed through context
+(briefings, chatter, casualty reports), never through rendering thousands of ships.
+
+## Wrecks and casualties persist, unrigged [owner addendum]
+Ordinary battle resolution leaves a persistent, general population of wrecks, debris fields and
+recoverable casualties. Every death, player-inhabited or not, feeds the same pool, discoverable
+through the same sensor, salvage and mission-routing logic. Nothing biases detection toward a wreck or body
+because the player once inhabited it, and reassigned AIs are not steered toward reunions.
+(Pass 1: destroyed ships remain in the world as radiating wrecks and debris clouds that sensors,
+trackers and classifiers treat like anything else.)
+
+## Search & Rescue [owner addendum]
+A persistent, cross-cutting objective type from Pass 2 onward: locate survivors and wrecks by
+sensors, assess recoverability, and extract under real time and risk pressure. It deepens with each pass.
+
+## Campaign structure, faction asymmetry, desertion, POW status, AI loyalty [owner addendum]
+See `ADDENDA.md` and `ROADMAP.md`. In brief: TC is on the offensive with institutional ego, and LC
+defends with pragmatic command. Bounded Task Forces take real attrition, resolved off-screen by the
+same headless simulation. Encirclement is *egress denial*, emerging from the planner. Desertion
+carries persistent consequences. POW is a third Roster status. A minority of "Loyalist-tier" TC AIs
+weigh loyalty heavily enough to refuse a human-initiated surrender, and the symmetric opposite exists
+too. A write-only War State Ledger records outcomes. The series ending is fixed; only the path to it varies.

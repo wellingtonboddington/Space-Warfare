@@ -18,6 +18,7 @@ import { ShipAgent } from '../ai/ship/shipAgent.js';
 import { SimplePilot } from '../ai/pilot/simplePilot.js';
 import { PilotAgent } from '../ai/pilot/pilotAgent.js';
 import { ClaimsRegistry } from '../ai/claims.js';
+import { CommsEngine, attachClaimsResolver } from '../comms/engine.js';
 import { ObjectiveEvaluator } from './scenario/objectives.js';
 import { RNG } from '../core/rng.js';
 
@@ -31,7 +32,7 @@ export class Session {
    * @param {object} scenario  from generateScenario()
    * @param {object} o  { mode:'human'|'ai'|'batch', imageSensors?:bool, pilotFactory?:(ship,agent,ctx)=>pilot }
    */
-  constructor(scenario, { mode = 'batch', imageSensors = mode !== 'batch', pilotFactory = null, fullPilot = mode !== 'batch' } = {}) {
+  constructor(scenario, { mode = 'batch', imageSensors = mode !== 'batch', pilotFactory = null, fullPilot = mode !== 'batch', comms = mode !== 'batch' } = {}) {
     this.scenario = scenario;
     this.mode = mode;
     this.roster = scenario.roster;
@@ -66,7 +67,8 @@ export class Session {
       ship.sensors = new SensorSuite(ship, { image: imageSensors && e.player, rng: world.rng.stream(`sensors-${e.key}`) });
       const mission = e.mission ? { ...e.mission } : { role: 'transit' };
       if (mission.protectId && this.keyToId.has(mission.protectId)) mission.protectId = this.keyToId.get(mission.protectId);
-      const friendlies = () => world.ships().filter((o) => o !== ship && o.faction === ship.faction);
+      // friendly datalink: same-faction ships broadcast navigation; our own KKVs report telemetry
+      const friendlies = () => [...world.entities.values()].filter((o) => o !== ship && o.faction === ship.faction && (o.kind === 'ship' || o.kind === 'kkv' || o.kind === 'kkv_decoy'));
       const protectedIds = mission.protectId ? [mission.protectId] : [];
       const mind = new ShipMind(ship, { models: this.models, prior: e.player ? scenario.prior : undefined, friendlies, protectedIds, rng: rngAgents.stream(`mind-${e.key}`) });
       this.minds.set(ship.id, mind);
@@ -89,6 +91,8 @@ export class Session {
     this.playerPilot = this.pilots.get(this.playerShip.id);   // PilotAgent (autonomous in AI-POV, body-only in Human-POV)
     this.claims = new ClaimsRegistry(this);
     this._wireCrewChannel();
+    attachClaimsResolver(this);
+    if (comms) this.comms = new CommsEngine(this, { rng: world.rng.stream('comms') });
 
     // --- scheduled systems (order matters: sense → think → act)
     world.addSystem('sensors', 0, (w, t, dt) => { for (const s of w.ships()) s.sensors?.update(w, t, dt); });

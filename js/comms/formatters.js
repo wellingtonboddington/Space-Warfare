@@ -18,17 +18,24 @@ export function numberWords(n) {
 /** Radio-style digit-by-digit ("two-seven-zero"). */
 export const digits = (n, pad = 3) => String(Math.round(n)).padStart(pad, '0').split('').map((d) => (d === '9' ? 'niner' : ONES[+d])).join('-');
 
-/** Words of estimative probability (Sherman Kent, 1964) — fixed, calibrated buckets. */
+/**
+ * Words of estimative probability (Sherman Kent, 1964) — fixed, calibrated buckets, in two
+ * grammatical forms so templates stay grammatical:
+ *   adverb  — "{track} is {p:words} a decoy"         → "probably", "almost certainly not"
+ *   odds    — "{p:odds} it connects" / "it's {p:odds}" → "a coin flip", "very unlikely"
+ */
 export const WEP = [
-  { lo: 0.0, hi: 0.03, w: ['no chance', 'effectively zero'] },
-  { lo: 0.03, hi: 0.12, w: ['almost certainly not', 'very unlikely'] },
-  { lo: 0.12, hi: 0.4, w: ['probably not', 'unlikely', 'doubtful'] },
-  { lo: 0.4, hi: 0.6, w: ['a coin flip', 'about even odds', 'could go either way'] },
-  { lo: 0.6, hi: 0.87, w: ['probably', 'likely', 'better than not'] },
-  { lo: 0.87, hi: 0.97, w: ['almost certainly', 'very likely', 'highly likely'] },
-  { lo: 0.97, hi: 1.01, w: ['certain', 'beyond reasonable doubt'] },
+  { lo: 0.0, hi: 0.03, adv: ['certainly not'], odds: ['no chance', 'effectively zero'] },
+  { lo: 0.03, hi: 0.12, adv: ['almost certainly not', 'very probably not'], odds: ['very unlikely', 'a long shot'] },
+  { lo: 0.12, hi: 0.4, adv: ['probably not', 'likely not'], odds: ['unlikely', 'doubtful'] },
+  { lo: 0.4, hi: 0.6, adv: ['possibly', 'maybe'], odds: ['a coin flip', 'about even odds'] },
+  { lo: 0.6, hi: 0.87, adv: ['probably', 'likely'], odds: ['likely', 'better than even'] },
+  { lo: 0.87, hi: 0.97, adv: ['almost certainly', 'very likely'], odds: ['highly likely', 'very likely'] },
+  { lo: 0.97, hi: 1.01, adv: ['certainly', 'beyond reasonable doubt'], odds: ['near-certain', 'all but certain'] },
 ];
-export function wepWords(p, pick = (a) => a[0]) { const b = WEP.find((x) => p >= x.lo && p < x.hi) ?? WEP[WEP.length - 1]; return pick(b.w); }
+const bucket = (p) => WEP.find((x) => p >= x.lo && p < x.hi) ?? WEP[WEP.length - 1];
+export function wepWords(p, pick = (a) => a[0]) { return pick(bucket(p).adv); }
+export function wepOdds(p, pick = (a) => a[0]) { return pick(bucket(p).odds); }
 
 /** Fractions people say ("three in four") — only when they're within 3 points of the truth. */
 const FRACS = [[1, 10], [1, 5], [1, 4], [1, 3], [2, 5], [1, 2], [3, 5], [2, 3], [3, 4], [4, 5], [9, 10]];
@@ -51,7 +58,7 @@ export function percent(p, style) {
 export function prob(p, style, rng) {
   const mode = style.probMode ?? 'auto';
   if (mode === 'pct' || (mode === 'auto' && style.formality > 0.55)) return percent(p, style);
-  if (mode === 'words' || (mode === 'auto' && rng.chance(0.5))) return wepWords(p, (a) => rng.pick(a));
+  if (mode === 'words' || (mode === 'auto' && rng.chance(0.5))) return wepOdds(p, (a) => rng.pick(a));
   return fractionWords(p) ?? percent(p, { ...style, hedge: true });
 }
 

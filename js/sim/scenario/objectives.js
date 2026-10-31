@@ -102,7 +102,8 @@ export class ObjectiveEvaluator {
         const dv = player.deltaVRemaining();
         return end(dv >= this.o.reserveDv ? 'success' : 'pyrrhic', { targetDestroyed: true, dvRemaining: Math.round(dv), pilotAlive });
       }
-      if (timeUp || (tg.alive && gone && t > 300)) return end('failed', { reason: tg.alive ? 'target-survived' : 'timeout', pilotAlive });
+      if (timeUp && !tg.alive) { const dv = player.deltaVRemaining(); return end(dv >= this.o.reserveDv ? 'success' : 'pyrrhic', { targetDestroyed: true, dvRemaining: Math.round(dv), pilotAlive, stillContested: true }); }
+      if (timeUp || (tg.alive && gone && t > 300)) return end('failed', { reason: 'target-survived', pilotAlive });
     } else if (this.o.type === 'recon') {
       const relays = s.playerAgent?.relays ?? [];
       const best = relays.map((r) => this.gradeRelay(r)).sort((a, b) => b.fraction - a.fraction)[0];

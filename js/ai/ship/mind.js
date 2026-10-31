@@ -64,12 +64,31 @@ export class ShipMind {
     if (!ship.alive) return;
     this.throttle = ship.thermal.avionicsThrottle * (ship.power.available('avionics') ? 1 : 0) * Math.min(1, ship.componentHealth('avionics') * 1.6);
     if (this.throttle <= 0) { ship.sensors.measurements.length = 0; return; } // the AI is down
-    this.tracker.ingest(ship.sensors.measurements.splice(0));
+    this.tracker.ingest(this._iff(ship.sensors.measurements.splice(0)));
     this.tracker.predictAll(t);
     this._datalink(t);
     const clsPeriod = 2 / Math.max(0.25, this.throttle);
     if (t - this.lastClassifyT >= clsPeriod) { this.lastClassifyT = t; this._classify(t); }
     if (t - this.lastAssessT >= 1 / Math.max(0.25, this.throttle)) { this.lastAssessT = t; this._assess(t); }
+  }
+
+  /**
+   * IFF / datalink suppression: detections along the bearing of a friendly datalink object (our
+   * own KKVs, wingmen, the protected asset) are attributed to it and kept off the hostile picture.
+   * The friend's broadcast position is known, so the gate is the sensor's angular σ (plus the
+   * friend's light-time-free nav error). A hostile exactly behind a friend can be masked — real.
+   */
+  _iff(meas) {
+    const friends = this.friendlies().filter((f) => (f.alive ?? true) && f.kind !== 'ship');
+    if (!friends.length) return meas;
+    return meas.filter((m) => {
+      for (const f of friends) {
+        const d = sub(f.pos, m.obsPos), r = len(d);
+        const ang = Math.acos(Math.max(-1, Math.min(1, dot(scale(d, 1 / r), m.u))));
+        if (ang < 4 * m.sigmaAng + 20 / r) return false;
+      }
+      return true;
+    });
   }
 
   /** Friendly datalink: friendly ships broadcast their own navigation solution. */

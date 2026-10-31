@@ -6,7 +6,7 @@
 /** AI traits */
 export function sampleAITraits(rng, faction) {
   const tc = faction === 'TC';
-  return {
+  const out = {
     caution: rng.betaMean(tc ? 0.6 : 0.5, 9),       // risk aversion in planning; how hard it pushes back
     verbosity: rng.betaMean(tc ? 0.45 : 0.55, 7),   // how much it says unprompted
     formality: rng.betaMean(tc ? 0.78 : 0.42, 10),  // register: "Lieutenant" vs first name; precise numbers
@@ -14,7 +14,14 @@ export function sampleAITraits(rng, faction) {
     candor: rng.betaMean(0.65, 8),                  // states uncertainty plainly vs smooths it over
     assertiveness: rng.betaMean(tc ? 0.45 : 0.55, 8),// presses for authorisation / disagrees openly
     warmth: rng.betaMean(tc ? 0.35 : 0.55, 7),      // reassurance, use of the pilot's name
+    // Loyalty bias (owner addendum): weight on High Command intent vs crew/self preservation.
+    // A small, named minority of TC AIs are "Loyalist-tier"; most are not. Pass 2 uses it in the
+    // surrender/disengagement utility (exterior actions) — symmetric with selfPreservation.
+    loyalty: tc && rng.chance(0.08) ? rng.betaMean(0.9, 30) : rng.betaMean(tc ? 0.5 : 0.42, 8),
+    selfPreservation: rng.betaMean(0.5, 6),
   };
+  out.loyalistTier = out.loyalty > 0.82;
+  return out;
 }
 
 /** Human traits */

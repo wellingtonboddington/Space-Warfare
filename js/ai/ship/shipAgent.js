@@ -15,7 +15,7 @@
 
 import { sub, add, scale, len, norm, dot, qRotate } from '../../core/vec.js';
 import { Reasoner, Curves } from '../utility/reasoner.js';
-import { candidates, evaluate, sampleTrackFutures } from './planner.js';
+import { generateCandidates } from './planner.js';
 import { kkvIntercept } from './fireControl.js';
 import { launchKKV } from '../../sim/weapons/launcher.js';
 import { moonOccludes, C_LIGHT } from '../../sim/orbital.js';
@@ -128,7 +128,13 @@ export class ShipAgent {
     const options = [{ key: 'none', label: 'say nothing', considerations: [{ name: 'quiet', value: 0.25 + 0.3 * load, curve: Curves.linear() }], data: null }];
     for (const p of problems) {
       let sev = p.severity;
-      if (p.kind === 'consent') sev = t - (this._wantConsentT ?? -999) < 20 ? 0.7 : 0;
+      if (p.kind === 'consent') {
+        // the interlock only matters when we are actually trying to fire: then the firing window is the clock
+        const wanting = t - (this._wantConsentT ?? -999) < 20;
+        sev = wanting ? 0.75 : 0;
+        p.ttc = wanting ? Math.max(8, this.ship.requests.find((r) => r.kind === 'kkv' && r.status === 'granted')?.windowEnd - t || 25) : 999;
+        p.severity = sev;
+      }
       if (sev <= 0.05) continue;
       const a = p.actions.find((x) => !x.badIdea && (p.kind !== 'breach' || !this.ship.pilotVisorClosed || !x.protective)) ?? p.actions[0];
       const asked = this.interiorAsked.get(p.id);
@@ -157,12 +163,14 @@ export class ShipAgent {
   _maneuver(t) {
     const ship = this.ship, mind = this.mind, tr = this.traits;
     if (!ship.spec.mainEngine) return;
-    const futures = sampleTrackFutures(mind, t, 5, this.rng);
+    // Physical costs come from the shared, POV-agnostic planner; preferences (weights) are ours.
     const targetTrack = this.missionTarget();
-    const ctx = { ship, mind, t, futures, mission: this.mission, targetTrack, orderedCandidate: this._orderedCandidate(t) };
-    const cands = candidates(ctx);
-    const evals = cands.map((c) => ({ c, m: evaluate(ctx, c) }));
-    const coast = evals.find((e) => e.c.kind === 'coast').m;
+    const ordered = this._orderedCandidate(t);
+    const plan = generateCandidates(ship, mind, this.mission, { t, rng: this.rng, targetTrack, extra: [ordered] });
+    const ctx = { orderedCandidate: ordered };
+    const evals = plan.candidates.map((p) => ({ c: p._cand, m: p._metrics, p }));
+    const coast = plan.coast._metrics;
+    this.lastCandidates = plan.candidates;
     const tol = ship.crewGTolerance ?? 3.0;
     const stealthW = this.mission.stealth ?? 0;
     const burning = ship.autopilot.burn && ['slew', 'burn'].includes(ship.autopilot.burn.phase);

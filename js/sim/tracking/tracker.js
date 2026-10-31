@@ -201,7 +201,7 @@ export class Track {
     const dt = t - this.t;
     if (Math.abs(dt) <= 1e-6) return;
     const flareRecent = t - this.lastFlareT < 6;
-    const sa = flareRecent ? THRUST_ACCEL_NOISE : this.accelNoise;
+    const sa = flareRecent ? Math.max(THRUST_ACCEL_NOISE, this.accelNoise) : this.accelNoise;
     const Q = dt > 0 ? processNoise(dt, sa) : null;
     if (Math.abs(dt) <= 2) {
       // Short step: tight components propagate the mean through full gravity and the covariance
@@ -314,7 +314,8 @@ export class Track {
     if (m.kind === 'radar') this.everRanged = true;
     if (m.features?.flare) {
       this.lastFlareT = m.t;
-      this.accelNoise = THRUST_ACCEL_NOISE;
+      // young flaring tracks may be KKVs under boost (~160 m/s²); established ones are ships (~6 m/s²)
+      this.accelNoise = this.hits < 25 ? 60 : THRUST_ACCEL_NOISE;
     }
     return true;
   }
@@ -451,6 +452,21 @@ export class Tracker {
       if (usedM.has(mi)) continue;
       const m = scan[mi];
       if (m.sensor === 'lwr') continue; // laser warnings only update existing tracks
+      // Manoeuvre-adaptive re-association: a detection just outside the gate of an existing track
+      // along nearly the same bearing is far more likely to be that object having manoeuvred than a
+      // new object. Inflate the track's manoeuvre noise (it burned) and try again before spawning.
+      const near = this._nearestByBearing(m, usedT);
+      if (near && m.t - near.lastFlareT < 12) {
+        near.accelNoise = THRUST_ACCEL_NOISE;
+        for (const c of near.comps) for (let k = 3; k < 6; k++) c.P[k][k] += 15 * 15;
+        const d2 = near.gate(m);
+        if (d2 < GATE[m.kind === 'bearing' ? 2 : m.kind === 'rwr' ? 3 : 4] * 2) {
+          near.update(m); usedT.add(near);
+          if (m.features) near.featureLog.push({ t: m.t, sensor: m.sensor, kind: m.kind, f: m.features, R: m.R, snr: m.snr, u: m.u, obsPos: m.obsPos, sigmaAng: m.sigmaAng });
+          this._emit('manoeuvre', near, { m });
+          continue;
+        }
+      }
       if (this.tracks.length >= this.maxTracks) continue;
       const tr = this._init(m);
       if (tr) {
@@ -460,6 +476,20 @@ export class Tracker {
       }
     }
     this._maintain(t);
+  }
+
+  /** Closest confirmed/older track by bearing to measurement m (within a few σ), excluding `used`. */
+  _nearestByBearing(m, used) {
+    let best = null, ba = Infinity;
+    for (const tr of this.tracks) {
+      if (used.has(tr) || tr.hits < 3) continue;
+      const p = tr.pos();
+      const d = sub(p, m.obsPos), r = len(d);
+      const ang = Math.acos(Math.max(-1, Math.min(1, dot(scale(d, 1 / r), m.u))));
+      const tol = 5 * Math.hypot(tr.angularSigma(m.obsPos), m.sigmaAng) + 2.5e-3;
+      if (ang < tol && ang < ba) { ba = ang; best = tr; }
+    }
+    return best;
   }
 
   /**
@@ -522,7 +552,10 @@ export class Tracker {
   _maintain(t) {
     for (const tr of this.tracks) {
       const recentHits = tr.recent.filter((x) => t - x < 6).length;
-      if (tr.status === 'tentative' && (recentHits >= 3 || (tr.everRanged && recentHits >= 2))) {
+      // M-of-N confirmation that also needs persistence in TIME (≥1 s), so three simultaneous
+      // looks from three sensors at one noise spike don't make a contact.
+      const span = t - tr.tCreated;
+      if (tr.status === 'tentative' && span >= 1.0 && (recentHits >= 3 || (tr.everRanged && recentHits >= 2))) {
         tr.status = 'confirmed';
         tr.label = `T-${++this.labelSeq}`;
         this._emit('confirmed', tr);

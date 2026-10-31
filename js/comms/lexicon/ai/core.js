@@ -62,6 +62,7 @@ export default {
       { t: '[urgentOpen] inbound, {track}, impact in {tImpact}.', tone: ['urgent', 'clipped'] },
       { t: 'Inbound on {target}. {track}, {tImpact} out. Projected miss {miss}.', tone: ['clipped', 'calm', 'formal'], when: (s) => s.target !== 'us' || s.miss > 300 },
       { t: '{track} is coming for {target}. {tImpact}. Hit probability {pHit:pct}.', tone: ['calm', 'formal', 'clipped'] },
+      { t: "{track} is closing on {target}. {pHit:odds} it connects — {tImpact}.", tone: ['calm', 'informal'] },
       { t: "{@name}, {track}'s on us — {tImpact}.", tone: ['urgent', 'warm', 'informal'], when: (s) => s.target === 'us' },
       { t: 'Kill vehicle inbound, {tImpact}. It can still correct — {pHit:pct} it connects.', tone: ['calm', 'formal'], when: (s) => s.target === 'us' && s.tImpact > 20 },
       { t: 'Inbound. {tImpact}.', tone: ['urgent', 'clipped'], verb: [0, 0.3] },

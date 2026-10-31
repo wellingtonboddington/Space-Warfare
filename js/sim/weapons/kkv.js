@@ -136,15 +136,15 @@ export class KKV {
   }
 
   /** Point-defence energy deposit (W·s). Returns true if the vehicle broke up. */
-  absorb(joules, world, t, rng, beamDir) {
+  absorb(joules, world, t, rng, beamDir, byId = null) {
     if (!this.alive) return false;
     this.heat += joules;
-    if (this.heat >= this.spec.killEnergyJ) { this.fragment(world, t, rng, 'laser'); return true; }
+    if (this.heat >= this.spec.killEnergyJ) { this.fragment(world, t, rng, 'laser', byId); return true; }
     return false;
   }
 
   /** Break up: the mass doesn't vanish — it becomes a spreading fragment cloud on the same path. */
-  fragment(world, t, rng, cause) {
+  fragment(world, t, rng, cause, byId = null) {
     if (!this.alive) return;
     this.alive = false;
     const [lo, hi] = this.spec.fragments;
@@ -156,7 +156,7 @@ export class KKV {
       frags.push(new Debris({ pos: this.pos, vel: add(this.vel, dv), mass: m, origin: this.id, kind: 'fragment', rng }));
     }
     for (const f of frags) world.add(f);
-    world.events.emit(t, 'kkv.fragmented', { kkv: this.id, cause, fragments: n, owner: this.ownerId });
+    world.events.emit(t, 'kkv.fragmented', { kkv: this.id, cause, fragments: n, owner: this.ownerId, by: byId });
     world.remove(this.id);
   }
 }

@@ -29,8 +29,11 @@ export class Person {
   constructor({ id = nid('P'), name, surname, nickname = null, rank, faction, age, birthplace, traits, role = 'pilot', history = [] }) {
     Object.assign(this, { id, kind: 'person', name, surname, nickname, rank, faction, age, birthplace, traits, role });
     this.history = history instanceof HistoryLog ? history : new HistoryLog(history);
-    this.status = 'active'; // active | wounded | KIA | MIA
+    this.status = 'active'; // active | wounded | KIA | MIA | POW | executed
     this.injuries = [];
+    // Persistent, DISCOVERABLE record flags (e.g. {type:'desertion', t, campaign}). Never hidden,
+    // never used to steer encounters toward or away from the player (owner addendum).
+    this.flags = [];
   }
   get fullName() { return `${this.name} ${this.surname}`; }
   get callName() { return this.nickname ?? this.surname; }

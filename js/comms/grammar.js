@@ -2,7 +2,7 @@
 //
 // TEMPLATE SYNTAX (lexicon files):
 //   {slot} / {slot:mode}   real value from the intent payload, rendered by a formatter in the
-//                          speaker's register. Modes: prob → pct|words|frac|auto; range → km;
+//                          speaker's register. Modes: prob → pct|words (adverb: "probably")|odds (noun: "a coin flip")|frac|auto; range → km;
 //                          track → name|radio; bearing → clock|deg; secs; dv; family → a|bare
 //   [rule]                 expand a shared nonterminal (rules may nest)
 //   (a|b|c)                inline alternatives
@@ -147,6 +147,7 @@ function fmtSlot(spec, slots, style) {
   switch (mode) {
     case 'pct': return F.percent(v, style);
     case 'words': return F.wepWords(v, (a) => rng.pick(a));
+    case 'odds': return F.wepOdds(v, (a) => rng.pick(a));
     case 'frac': return F.fractionWords(v) ?? F.percent(v, { ...style, hedge: true });
     case 'prob': case 'auto': return F.prob(v, style, rng);
     case 'km': return F.km(v, style);
@@ -197,7 +198,7 @@ function finish(text, style) {
   let s = text.replace(/\s+/g, ' ').replace(/\s+([,.!?;:])/g, '$1').replace(/([,;:])(?=[^\s])/g, '$1 ').replace(/,\s*([.!?])/g, '$1').replace(/^[,\s]+/, '').trim();
   // Lower-case a rule/template capital that landed mid-sentence (after a comma, dash or colon),
   // then capitalise true sentence starts. Acronyms (two+ capitals) are left alone.
-  const keep = new Set(`${style.address ?? ''} ${style.keepCase ?? ''}`.split(/\s+/).filter(Boolean));
+  const keep = new Set(`${style.address ?? ''} ${style.keepCase ?? ''}`.split(/[^A-Za-z]+/).filter(Boolean));
   s = s.replace(/([,—:]\s+)([A-Z])([a-z]+)/g, (m, a, b, c) => (keep.has(b + c) ? m : a + b.toLowerCase() + c));
   s = s.replace(/(^|[.!?]\s+)([a-z])/g, (m, a, b) => a + b.toUpperCase());
   if (style.role === 'pilot') s = disfluency(s, style);
