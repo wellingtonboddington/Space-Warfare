@@ -52,7 +52,7 @@ def cell(me, seeds, i, cap_mat=0, tear=0.012, tear_scale=0.05, seed=0.0, jitter_
             q = v.co * (1.0 / tear_scale) + off
             d = Vector((noise.noise(q), noise.noise(q + Vector((17.0, 3.0, 5.0))), noise.noise(q + Vector((3.0, 29.0, 11.0)))))
             v.co += d * tear
-    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+    # caps stay n-gons: they are triangulated after core.canonicalize, which keeps the result deterministic
     return bm
 
 

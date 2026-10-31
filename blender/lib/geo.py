@@ -16,6 +16,12 @@ TAU = math.tau
 I4 = Matrix.Identity(4)
 
 
+def _uniq(it):
+    """Order-preserving de-duplication (sets of BMesh elements iterate by memory address, which would
+    make vertex order - and so the exported bytes - differ between otherwise identical runs)."""
+    return list(dict.fromkeys(it))
+
+
 def _m(M):
     return I4 if M is None else M
 
@@ -95,7 +101,7 @@ class MeshBuilder:
         sx, sy, sz = size
         r = bmesh.ops.create_cube(self.bm, size=1.0, matrix=_m(M) @ core.S(sx, sy, sz))
         verts = r['verts']
-        faces = list({f for v in verts for f in v.link_faces})
+        faces = _uniq(f for v in verts for f in v.link_faces)
         self._finish(verts, faces, mat)
         if bevel > 0:
             faces = self.bevel(faces, bevel, seg, angle)
@@ -107,7 +113,7 @@ class MeshBuilder:
         res = bmesh.ops.create_cone(self.bm, cap_ends=caps, cap_tris=False, segments=seg, radius1=r,
                                     radius2=r if r2 is None else r2, depth=depth, matrix=_m(M))
         verts = res['verts']
-        faces = list({f for v in verts for f in v.link_faces})
+        faces = _uniq(f for v in verts for f in v.link_faces)
         self._finish(verts, faces, mat)
         if bevel > 0 and caps:
             faces = self.bevel(faces, bevel, bseg, angle)
@@ -383,7 +389,7 @@ class MeshBuilder:
         bpy.data.meshes.remove(me2)
         self.bm.verts.ensure_lookup_table()
         newv = [self.bm.verts[i] for i in range(n0, len(self.bm.verts))]
-        faces = list({f for v in newv for f in v.link_faces})
+        faces = _uniq(f for v in newv for f in v.link_faces)
         for f in faces:
             f.smooth = True
         self._track(newv)
@@ -428,7 +434,7 @@ class MeshBuilder:
     # ------------------------------------------------------------------ operations
     def bevel(self, faces, width, seg=2, angle=30, profile=0.5):
         """Angle-limited bevel of the edges bounding `faces`. Returns the updated face set."""
-        edges = set()
+        edges = {}
         lim = math.radians(angle)
         for f in faces:
             if not f.is_valid:
@@ -437,7 +443,7 @@ class MeshBuilder:
                 if len(e.link_faces) == 2:
                     try:
                         if e.calc_face_angle() > lim:
-                            edges.add(e)
+                            edges[e] = None
                     except ValueError:
                         pass
         if not edges:
@@ -478,7 +484,7 @@ class MeshBuilder:
 
     def wrinkle(self, faces, amp, scale, seed=0.0, sharp=0.6):
         """Crinkle (MLI) displacement along vertex normals: ridged noise, deterministic."""
-        verts = list({v for f in faces if f.is_valid for v in f.verts})
+        verts = _uniq(v for f in faces if f.is_valid for v in f.verts)
         self.bm.normal_update()
         off = Vector((seed * 13.17, seed * 7.31, seed * 3.77))
         disp = []
@@ -492,14 +498,15 @@ class MeshBuilder:
             v.co += d
 
     def subdivide(self, faces, cuts=1):
-        edges = list({e for f in faces if f.is_valid for e in f.edges})
+        edges = _uniq(e for f in faces if f.is_valid for e in f.edges)
         r = bmesh.ops.subdivide_edges(self.bm, edges=edges, cuts=cuts, use_grid_fill=True)
         newv = [g for g in r['geom'] if isinstance(g, bmesh.types.BMVert)]
         self._track(newv)
-        return list({f for f in self.bm.faces if f.is_valid and any(v in set(newv) for v in f.verts)}) or faces
+        nv = set(newv)
+        return [f for f in self.bm.faces if f.is_valid and any(v in nv for v in f.verts)] or faces
 
     def transform(self, faces, M):
-        verts = list({v for f in faces if f.is_valid for v in f.verts})
+        verts = _uniq(v for f in faces if f.is_valid for v in f.verts)
         bmesh.ops.transform(self.bm, matrix=M, verts=verts)
 
     def bounds(self):

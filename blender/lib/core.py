@@ -220,6 +220,96 @@ def apply_all_modifiers(objs=None):
             bpy.data.meshes.remove(old)
 
 
+def canonicalize(ob):
+    """Rebuild a finished mesh in a canonical element order so the exported bytes depend only on the geometry.
+    Blender's C bmesh operators / modifiers (bevel, boolean, solidify ...) iterate pointer-keyed hash maps, so their
+    output element order follows memory layout and changes between runs. Vertices are sorted by position (ties
+    broken by neighbourhood), faces rotated to start at their lowest vertex and sorted; materials, smooth flags,
+    sharp edges, UV maps and custom split normals are carried across. Skinned / shape-keyed meshes are left alone."""
+    import numpy as np
+    if ob.type != 'MESH' or ob.data.shape_keys or any(m.type == 'ARMATURE' for m in ob.modifiers) or ob.modifiers:
+        return
+    me = ob.data
+    nv, nl, npl, ne = len(me.vertices), len(me.loops), len(me.polygons), len(me.edges)
+    if nv == 0 or npl == 0:
+        return
+    co = np.empty(nv * 3, np.float64)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(nv, 3)
+    lv = np.empty(nl, np.int64)
+    me.loops.foreach_get('vertex_index', lv)
+    ls = np.empty(npl, np.int64)
+    me.polygons.foreach_get('loop_start', ls)
+    lt = np.empty(npl, np.int64)
+    me.polygons.foreach_get('loop_total', lt)
+    mi = np.empty(npl, np.int64)
+    me.polygons.foreach_get('material_index', mi)
+    sm = np.empty(npl, bool)
+    me.polygons.foreach_get('use_smooth', sm)
+    ev = np.empty(ne * 2, np.int64)
+    me.edges.foreach_get('vertices', ev)
+    ev = ev.reshape(ne, 2)
+    sharp = set()
+    if 'sharp_edge' in me.attributes:
+        se = np.zeros(ne, bool)
+        me.attributes['sharp_edge'].data.foreach_get('value', se)
+        sharp = {(int(a), int(b)) for a, b in ev[se]}
+    custom = me.has_custom_normals
+    cn = None
+    if custom:
+        cn = np.empty(nl * 3, np.float64)
+        me.corner_normals.foreach_get('vector', cn)
+        cn = cn.reshape(nl, 3)
+    uvs = []
+    for layer in me.uv_layers:
+        u = np.empty(nl * 2, np.float64)
+        layer.data.foreach_get('uv', u)
+        uvs.append((layer.name, u.reshape(nl, 2)))
+    # vertex order: position, then summed neighbour position, then valence
+    nsum = np.zeros((nv, 3))
+    np.add.at(nsum, ev[:, 0], co[ev[:, 1]])
+    np.add.at(nsum, ev[:, 1], co[ev[:, 0]])
+    val = np.bincount(ev.ravel(), minlength=nv)
+    r = lambda a: np.round(a, 7)
+    order = np.lexsort((val, r(nsum[:, 2]), r(nsum[:, 1]), r(nsum[:, 0]), r(co[:, 2]), r(co[:, 1]), r(co[:, 0])))
+    new_of = np.empty(nv, np.int64)
+    new_of[order] = np.arange(nv)
+    faces = []
+    for p in range(npl):
+        lidx = list(range(ls[p], ls[p] + lt[p]))
+        vids = [int(new_of[lv[l]]) for l in lidx]
+        k = vids.index(min(vids))
+        faces.append((int(mi[p]), vids[k:] + vids[:k], lidx[k:] + lidx[:k], bool(sm[p])))
+    faces.sort(key=lambda f: (f[0], f[1]))
+    me2 = bpy.data.meshes.new(me.name)
+    me2.from_pydata(co[order].tolist(), [], [f[1] for f in faces])
+    for m in me.materials:
+        me2.materials.append(m)
+    me2.polygons.foreach_set('material_index', [f[0] for f in faces])
+    me2.polygons.foreach_set('use_smooth', [f[3] for f in faces])
+    lorder = [l for f in faces for l in f[2]]
+    # from_pydata creates loops in face order, so new loop k corresponds to old loop lorder[k]
+    for name, u in uvs:
+        layer = me2.uv_layers.new(name=name)
+        layer.data.foreach_set('uv', u[lorder].ravel())
+    if sharp:
+        old_pairs = {(int(new_of[a]), int(new_of[b])) for a, b in sharp}
+        old_pairs |= {(b, a) for a, b in old_pairs}
+        ev2 = np.empty(len(me2.edges) * 2, np.int64)
+        me2.edges.foreach_get('vertices', ev2)
+        ev2 = ev2.reshape(-1, 2)
+        flags = [(int(a), int(b)) in old_pairs for a, b in ev2]
+        attr = me2.attributes.get('sharp_edge') or me2.attributes.new('sharp_edge', 'BOOLEAN', 'EDGE')
+        attr.data.foreach_set('value', flags)
+    if custom:
+        me2.normals_split_custom_set([tuple(v) for v in cn[lorder]])
+    old = ob.data
+    ob.data = me2
+    me2.name = old.name
+    if old.users == 0:
+        bpy.data.meshes.remove(old)
+
+
 def finalize(objs=None):
     """Apply every modifier stack, then delete boolean cutters / helpers flagged `_cutter`."""
     apply_all_modifiers(objs)

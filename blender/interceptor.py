@@ -353,7 +353,7 @@ def build_tanks(mb, rng):
     for side, comp in ((-1, 'tank_fuel'), (1, 'tank_ox')):
         c = V((side * TANK_X, TANK_Y, 0.0))
         with mb.region(comp):
-            kit.tank_sphere(mb, T(c) @ R('Z', 11.25), TANK_R, 'MAT_HULL_METAL', seg=24, rings=10, straps=False,
+            kit.tank_sphere(mb, T(c) @ R('Z', 11.25), TANK_R, 'MAT_HULL_METAL', seg=24, rings=9, straps=False,
                             rng=rng)
         # mount struts from inboard girth tabs to the keel nodes (V pairs)
         for dy in (-0.55, 0.55):
@@ -488,7 +488,7 @@ def build_engine(root, rng):
     mb = geo.MeshBuilder('ENGINE_BELL')
     with mb.region('engine'):
         Mt = frame(V((0, THROAT_Y, 0)), z=(0, 1, 0), y=(0, 0, 1))
-        kit.regen_bell(mb, Mt, 0.11, EXIT_R, BELL_LEN, tubes=40, chamber_r=0.19, chamber_len=0.42)
+        kit.regen_bell(mb, Mt, 0.11, EXIT_R, BELL_LEN, tubes=32, chamber_r=0.19, chamber_len=0.42)
     ob = mb.to_object('ENGINE_BELL', parent=root)
     return ob, mb
 

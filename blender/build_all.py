@@ -63,6 +63,8 @@ def build_asset(name, preview=True):
     t1 = time.time()
     own = [o for o in bpy.context.scene.objects if o not in base]
     core.finalize([o for o in own if o.type == 'MESH'])
+    for o in [o for o in bpy.context.scene.objects if o not in base and o.type == 'MESH']:
+        core.canonicalize(o)            # byte-stable element order (see core.canonicalize)
     own = [o for o in bpy.context.scene.objects if o not in base]
     own_mesh = [o for o in own if o.type == 'MESH']
     m = dict(info.get('masks', {}))
