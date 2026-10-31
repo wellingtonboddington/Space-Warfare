@@ -127,8 +127,9 @@ export function resolveImpact(world, ship, proj, box, vRel, hitPointBody) {
 
   // A KKV is designed to kill: megajoules into the hull core is the end of an Interceptor.
   // Outboard radiator panels are thin — the KKV may pass through and still find the core.
-  if (proj.kind === 'kkv' && KE > 1e6 && !info.radiator) { killShip(world, ship, 'kkv', { component: box.id, ...source }); return; }
-  if (proj.kind === 'kkv' && KE > 1e6 && info.radiator && rng.chance(0.55)) {
+  const small = ship.mass < 30000; // Interceptor-scale hulls die to one solid hit; big structures take component damage
+  if (small && proj.kind === 'kkv' && KE > 1e6 && !info.radiator) { killShip(world, ship, 'kkv', { component: box.id, ...source }); return; }
+  if (small && proj.kind === 'kkv' && KE > 1e6 && info.radiator && rng.chance(0.55)) {
     degrade(ship, box.id, 1, t, world, 'impact', source);
     killShip(world, ship, 'kkv', { component: 'keel', through: box.id, ...source });
     return;

@@ -91,7 +91,9 @@ export class ObjectiveEvaluator {
     }
     if (this.o.type === 'picket') {
       const depot = s.byKey(this.o.protectKey);
-      if (!depot.alive) return end('failed', { reason: 'asset-destroyed', pilotAlive });
+      // functional loss: the control module, or two of four tanks, gone
+      const tanksLost = [...depot.components.entries()].filter(([k, c]) => k.startsWith('tank') && c.integrity < 0.2).length;
+      if (!depot.alive || tanksLost >= 2 || depot.componentHealth('control') < 0.2) return end('failed', { reason: 'asset-destroyed', tanksLost, pilotAlive });
       const kkvsInFlight = world.ofKind('kkv').some((k) => k.faction !== player.faction);
       const raidersEmpty = hostiles.every((h) => h.kkvRemaining === 0);
       if ((timeUp || gone || (raidersEmpty && hostiles.length > 0) || hostiles.length === 0) && !kkvsInFlight && t > 120) return end('success', { assetSurvived: true, pilotAlive, depotIntegrity: [...depot.components.values()].reduce((a, c) => a + c.integrity, 0) / depot.components.size });
