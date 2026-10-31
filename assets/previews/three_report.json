@@ -1,39 +1,28 @@
 {
- "hauler": {
-  "name": "hauler",
-  "tris": 22124,
+ "decoy": {
+  "name": "decoy",
+  "tris": 6916,
   "meshes": {
-   "ENGINE_BELL": 4752,
-   "HAULER_BODY": 17372
+   "DECOY_KKV_ENVELOPE": 1224,
+   "DECOY_SHIP_ENVELOPE": 5692
   },
   "nodes": [
    "Scene",
-   "HAULER",
-   "ENGINE_BELL",
-   "ENGINE_BELL001",
-   "ENGINE_BELL001_1",
-   "HAULER_BODY",
-   "HAULER_BODY001",
-   "HAULER_BODY001_1",
-   "HAULER_BODY001_2",
-   "HAULER_BODY001_3",
-   "HAULER_BODY001_4",
-   "HAULER_BODY001_5",
-   "HAULER_BODY001_6",
-   "HAULER_BODY001_7",
-   "HAULER_BODY001_8",
-   "HAULER_BODY001_9",
-   "HAULER_BODY001_10",
-   "HAULER_BODY001_11",
-   "HAULER_BODY001_12",
-   "HAULER_BODY001_13",
-   "HAULER_BODY001_14",
-   "HIT_cabin",
-   "HIT_engine",
-   "HIT_radiator",
-   "HIT_tank_cargo",
-   "HIT_truss",
-   "HP_ENGINE"
+   "DECOY_KKV",
+   "DECOY_KKV_ENVELOPE",
+   "DECOY_KKV_ENVELOPE_1",
+   "DECOY_KKV_ENVELOPE_2",
+   "DECOY_KKV_ENVELOPE_3",
+   "HIT_envelope_kkv",
+   "DECOY_SHIP",
+   "DECOY_SHIP_ENVELOPE",
+   "DECOY_SHIP_ENVELOPE_1",
+   "DECOY_SHIP_ENVELOPE_2",
+   "DECOY_SHIP_ENVELOPE_3",
+   "DECOY_SHIP_ENVELOPE_4",
+   "DECOY_SHIP_ENVELOPE_5",
+   "DECOY_SHIP_ENVELOPE_6",
+   "HIT_envelope"
   ],
   "morphs": {},
   "skins": [],
@@ -41,7 +30,7 @@
   "noColor": [],
   "colorMin": [
    0,
-   0,
+   0.007,
    0
   ],
   "colorMax": [

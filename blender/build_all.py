@@ -81,6 +81,8 @@ def build_asset(name, preview=True):
     export.export_glb(out, cameras=info.get('cameras', False), objects=own if base else None)
     tris = core.tri_count(own_mesh)
     t3 = time.time()
+    if preview and info.get('pre_preview'):
+        info['pre_preview']()           # preview-only scene tweaks (after export)
     if preview:
         pv = dict(info.get('preview', {}))
         cam = pv.pop('camera', None)
