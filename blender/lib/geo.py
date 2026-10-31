@@ -287,6 +287,7 @@ class MeshBuilder:
         for i in range(n):
             j = (i + 1) % n
             faces.append(bm.faces.new([bot[i], bot[j], top[j], top[i]]))
+        bmesh.ops.recalc_face_normals(bm, faces=faces)
         self._finish(bot + top, faces, mat)
         if bevel > 0:
             faces = self.bevel(faces, bevel, seg, angle)
@@ -566,7 +567,7 @@ def regions_union(*builders):
     return out
 
 
-def boolean(target, cutter, op='DIFFERENCE', solver='EXACT', transfer_materials=True):
+def boolean(target, cutter, op='DIFFERENCE', solver='EXACT', transfer_materials=True, reorder=True):
     """Add a boolean modifier ahead of bevel/weighted-normal (booleans run first); the cutter object is
     flagged `_cutter` and deleted by core.finalize() after the stack is applied."""
     m = target.modifiers.new('bool_' + cutter.name, 'BOOLEAN')
@@ -579,7 +580,7 @@ def boolean(target, cutter, op='DIFFERENCE', solver='EXACT', transfer_materials=
         except Exception:
             pass
     first = next((i for i, mod in enumerate(target.modifiers) if mod.type != 'BOOLEAN'), None)
-    if first is not None and first < len(target.modifiers) - 1:
+    if reorder and first is not None and first < len(target.modifiers) - 1:
         with bpy.context.temp_override(object=target, active_object=target):
             bpy.ops.object.modifier_move_to_index(modifier=m.name, index=first)
     cutter.hide_render = True

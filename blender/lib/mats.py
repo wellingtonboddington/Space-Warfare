@@ -1,7 +1,8 @@
 """Contract material library (docs/ASSETS.md 1.2). Principled BSDF only; the runtime keys on the names.
 
 Additions beyond the contract table (documented in blender/README.md "As-built notes"):
-  MAT_PAINT_RED / MAT_PAINT_AMBER / MAT_PAINT_YELLOW  accent paint (guards, AI bezel, warning stripes)
+  MAT_PAINT_RED / MAT_PAINT_AMBER / MAT_PAINT_YELLOW / MAT_PAINT_WHITE  accent paint (guards, AI bezel,
+                     warning stripes, dial ticks)
   MAT_HIVIS          civilian high-visibility orange (hauler markings)
   MAT_SOLAR_CELL     depot solar array cells
   MAT_EYE            pilot sclera
@@ -39,6 +40,7 @@ SPEC = {
     'MAT_PAINT_RED':      ((0.50, 0.04, 0.03), 0.0, 0.55, {}),
     'MAT_PAINT_AMBER':    ((0.80, 0.42, 0.04), 0.0, 0.50, {}),
     'MAT_PAINT_YELLOW':   ((0.80, 0.62, 0.05), 0.0, 0.55, {}),
+    'MAT_PAINT_WHITE':    ((0.82, 0.82, 0.80), 0.0, 0.50, {}),
     'MAT_HIVIS':          ((0.95, 0.30, 0.02), 0.0, 0.55, {}),
     'MAT_SOLAR_CELL':     ((0.015, 0.03, 0.09), 0.6, 0.18, {}),
     'MAT_EYE':            ((0.80, 0.78, 0.75), 0.0, 0.25, {}),

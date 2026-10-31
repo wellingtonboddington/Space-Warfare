@@ -10,7 +10,7 @@ import math
 import random
 import numpy as np
 import bmesh
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, noise as mnoise
 from mathutils.bvhtree import BVHTree
 from . import core
 
@@ -40,8 +40,11 @@ def build_bvh(objs):
 
 
 def bake(objs=None, ao_dist=1.5, crevice=0.04, samples=24, eps=None, ao_gain=1.0, wear_gain=1.0,
-         cavity_gain=1.0, occluders=None, seed=1):
-    """Compute and store the masks on every mesh object in `objs` (default: all scene meshes)."""
+         cavity_gain=1.0, occluders=None, seed=1, wear_noise=0.0):
+    """Compute and store the masks on every mesh object in `objs` (default: all scene meshes).
+    wear_noise > 0 (metres): edge wear is modulated by world-space noise of that scale so scuffs read as
+    patchy chips concentrated on exposed edges instead of a uniform outline; AO-occluded (sheltered)
+    edges wear less."""
     objs = [o for o in (objs if objs is not None else core.mesh_objects()) if o.type == "MESH"]
     bvh = build_bvh(occluders or objs)
     dirs = _hemisphere_dirs(samples)
@@ -129,6 +132,12 @@ def bake(objs=None, ao_dist=1.5, crevice=0.04, samples=24, eps=None, ao_gain=1.0
             ao = max(0.0, min(1.0, ao)) ** 1.15
             wear = min(1.0, wear_gain * conv2[i] / (0.5 * math.pi))
             wear = wear * wear * (3 - 2 * wear)
+            if wear_noise > 0.0 and wear > 0.0:
+                q = O[i]
+                nz = mnoise.noise(Vector((q[0], q[1], q[2])) * (1.0 / wear_noise) + Vector((seed * 3.1, 7.7, 1.9)),
+                                  noise_basis='PERLIN_ORIGINAL')
+                patch = max(0.0, min(1.0, (nz + 0.1) * 2.4))
+                wear = wear * (0.15 + 0.85 * patch) * (0.55 + 0.45 * ao)
             cav = max(min(1.0, cavity_gain * conc2[i] / (0.5 * math.pi)), min(1.0, 2.2 * crev / K))
             k = i * 4
             cols[k] = ao

@@ -69,9 +69,9 @@ def build_asset(name, preview=True):
     occl = [o for o in core.mesh_objects() if not o.name.startswith('DECAL_')]
     masks.bake(objs=own_mesh, occluders=occl, **m)
     t2 = time.time()
-    if name == 'chassis':
-        os.makedirs(CACHE, exist_ok=True)
-        bpy.ops.wm.save_as_mainfile(filepath=chassis_blend, compress=False)
+    os.makedirs(CACHE, exist_ok=True)
+    # finished scene (masks baked) for QA renders; the chassis copy is also the base scene for the kits
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(CACHE, name + '.blend'), compress=False)
     lay = None
     if name in LAYOUT_ASSETS:
         lay = export.layout(root=info.get('root'), objs=own)
@@ -85,6 +85,8 @@ def build_asset(name, preview=True):
         if cam:
             c = render.camera_at(cam['loc'], cam['target'], cam.get('fov', 60))
             render.sun(pv.get('sun_dir', (-0.55, 0.75, 0.9)), pv.get('energy', 5.0))
+            for loc, e in pv.get('points', []):
+                render.point(loc, e)
             render.render(os.path.join(PREVIEW_DIR, name + '.png'), c, pv.get('samples', 24))
         else:
             render.preview(os.path.join(PREVIEW_DIR, name + '.png'), **pv)

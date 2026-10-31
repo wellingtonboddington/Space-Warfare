@@ -52,8 +52,15 @@ def sun(direction=(-0.55, 0.75, 0.9), energy=5.0, angle_deg=0.53, name='_preview
     return ob
 
 
-def fill(energy=0.0):
-    return None
+def point(loc, energy=5.0, radius=0.05, name='_preview_point'):
+    """Preview-only fill light (never exported: previews render after export)."""
+    ld = bpy.data.lights.new(name, 'POINT')
+    ld.energy = energy
+    ld.shadow_soft_size = radius
+    ob = bpy.data.objects.new(name, ld)
+    core.link(ob)
+    core.place(ob, core.T(*loc))
+    return ob
 
 
 def _world_points(max_pts=30000):
