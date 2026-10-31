@@ -6,6 +6,7 @@ Additions beyond the contract table (documented in blender/README.md "As-built n
   MAT_HIVIS          civilian high-visibility orange (hauler markings)
   MAT_SOLAR_CELL     depot solar array cells
   MAT_EYE            pilot sclera
+  MAT_BETA_CLOTH     white woven outer cover of an MLI blanket (hauler cargo tank)
 """
 import bpy
 
@@ -44,6 +45,7 @@ SPEC = {
     'MAT_HIVIS':          ((0.95, 0.30, 0.02), 0.0, 0.55, {}),
     'MAT_SOLAR_CELL':     ((0.015, 0.03, 0.09), 0.6, 0.18, {}),
     'MAT_EYE':            ((0.80, 0.78, 0.75), 0.0, 0.25, {}),
+    'MAT_BETA_CLOTH':     ((0.78, 0.77, 0.73), 0.0, 0.85, {}),
 }
 
 
