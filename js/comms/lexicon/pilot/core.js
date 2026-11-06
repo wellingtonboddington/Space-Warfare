@@ -39,8 +39,8 @@ export default {
       { t: "Leaning yes, but — [doubt]?", tone: ['calm', 'informal'], when: (s) => s.lean > 0.3 },
     ],
     Refusal: [
-      { t: 'Negative. Not doing {label}.', tone: ['clipped', 'formal', 'defiant'] },
-      { t: 'No. {label} stays where it is.', tone: ['defiant', 'clipped'] },
+      { t: 'Negative. Not doing that: {label}.', tone: ['clipped', 'formal', 'defiant'] },
+      { t: '{label}? No. That stays where it is.', tone: ['defiant', 'clipped'] },
       { t: "I'm not doing that, {@name}.", tone: ['defiant', 'informal'] },
       { t: "Can't. Not right now.", tone: ['anxious', 'afraid'], when: (s) => /effort/.test(s.reason) },
       { t: "Too risky. I'm not touching it.", tone: ['anxious', 'defiant'], when: (s) => /risk/.test(s.reason) },
