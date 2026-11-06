@@ -79,9 +79,12 @@ export function rangeWithSigma(m, sigma, style) {
 }
 export function seconds(s) {
   s = Math.max(0, s);
-  if (s < 90) return `${Math.round(s)} seconds`;
+  if (s < 0.95) return s < 0.05 ? 'a fraction of a second' : `${s.toFixed(1)} seconds`;
+  if (s < 9.5 && Math.abs(s - Math.round(s)) > 0.05) return `${s.toFixed(1)} seconds`;
+  if (s < 90) { const n = Math.round(s); return n === 1 ? 'one second' : `${n} seconds`; }
   const m = Math.floor(s / 60), r = Math.round(s % 60);
-  return r < 10 || r > 50 ? `${Math.round(s / 60)} minutes` : `${m} minutes ${r}`;
+  if (r < 10 || r > 50) { const n = Math.round(s / 60); return n === 1 ? 'one minute' : `${n} minutes`; }
+  return `${m === 1 ? 'one minute' : `${m} minutes`} ${r}`;
 }
 /** Bearing relative to the ship's body (clock code + high/low) — the way a pilot thinks. */
 export function clockBearing(relBody) {

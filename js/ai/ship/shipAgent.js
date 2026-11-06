@@ -366,7 +366,41 @@ export class ShipAgent {
     if ((this._wT ?? -1) > t - 1.5) return;
     this._wT = t;
     if (this.orders.holdFire) return;
+    const options = this.fireOptions(t);
+    const pick = this.r.weapons.choose(options, t);
+    this.decisions.weapons = { t, label: pick?.label, explain: this.r.weapons.explain(), options: this.r.weapons.last.slice(0, 4).map((o) => ({ label: o.label, score: o.total, pk: o.data?.pk })) };
+    if (!pick || !pick.data) return;
+    this.executeFire(pick, t);
+  }
+
+  /** Fire (or ask to fire) a chosen salvo. Shared by the utility AI and the AI-POV player. */
+  executeFire(pick, t) {
+    const ship = this.ship, mind = this.mind;
+    const d = pick.data;
+    const auth = this.authorised('kkv', pick.key, t);
+    if (!auth.ok) {
+      const urgency = Math.min(1, 0.3 + d.pk * 0.6);
+      this.request('kkv', pick.key, `${d.n > 1 ? `${d.n}-round salvo` : 'KKV'} on ${d.a.label}`, { pk: d.pk, tGo: d.sol.tGo, family: d.a.family, pFamily: d.a.pFamily }, t, { urgency, window: 25, gain: d.pk });
+      return;
+    }
+    if (ship.interior.get('weaponsConsent') !== 1) {
+      this._wantConsentT = t;
+      this._emit('needConsent', { pk: d.pk, track: d.trackId });
+      return;
+    }
+    for (let i = 0; i < d.n; i++) {
+      const res = launchKKV(ship.world, ship, { aimDir: d.sol.aimDir, tGo: d.sol.tGo, expectedDir: norm(sub(mind.track(d.trackId).pos(), ship.pos)), salvoIndex: i });
+      if (!res.ok) { this._emit('launchFailed', { reason: res.reason }); break; }
+      this.shots.push({ kkvId: res.kkv.id, trackId: d.trackId, t, tGo: d.sol.tGo, pk: d.pk, label: d.a.label });
+    }
+    this._emit('fired', { track: d.trackId, label: d.a.label, n: d.n, pk: d.pk, tGo: d.sol.tGo, notify: auth.notify, explain: this.r.weapons.explain() });
+  }
+
+  /** Every feasible salvo right now, with its considerations (fire-control solutions, Pk). */
+  fireOptions(t) {
+    const ship = this.ship, mind = this.mind, tr = this.traits;
     const w = ship.spec.weapons.find((x) => x.type === 'kkv');
+    if (!w) return [];
     const options = [{ key: 'hold', label: 'hold fire', considerations: [{ name: 'patience', value: 0.35, curve: Curves.linear() }], data: null }];
     const recentShots = this.shots.filter((s) => t - s.t < s.tGo + 10);
     for (const a of mind.ranked()) {
@@ -404,27 +438,7 @@ export class ShipAgent {
         });
       }
     }
-    const pick = this.r.weapons.choose(options, t);
-    this.decisions.weapons = { t, label: pick?.label, explain: this.r.weapons.explain(), options: this.r.weapons.last.slice(0, 4).map((o) => ({ label: o.label, score: o.total, pk: o.data?.pk })) };
-    if (!pick || !pick.data) return;
-    const d = pick.data;
-    const auth = this.authorised('kkv', pick.key, t);
-    if (!auth.ok) {
-      const urgency = Math.min(1, 0.3 + d.pk * 0.6);
-      this.request('kkv', pick.key, `${d.n > 1 ? `${d.n}-round salvo` : 'KKV'} on ${d.a.label}`, { pk: d.pk, tGo: d.sol.tGo, family: d.a.family, pFamily: d.a.pFamily }, t, { urgency, window: 25, gain: d.pk });
-      return;
-    }
-    if (ship.interior.get('weaponsConsent') !== 1) {
-      this._wantConsentT = t;
-      this._emit('needConsent', { pk: d.pk, track: d.trackId });
-      return;
-    }
-    for (let i = 0; i < d.n; i++) {
-      const res = launchKKV(ship.world, ship, { aimDir: d.sol.aimDir, tGo: d.sol.tGo, expectedDir: norm(sub(mind.track(d.trackId).pos(), ship.pos)), salvoIndex: i });
-      if (!res.ok) { this._emit('launchFailed', { reason: res.reason }); break; }
-      this.shots.push({ kkvId: res.kkv.id, trackId: d.trackId, t, tGo: d.sol.tGo, pk: d.pk, label: d.a.label });
-    }
-    this._emit('fired', { track: d.trackId, label: d.a.label, n: d.n, pk: d.pk, tGo: d.sol.tGo, notify: auth.notify, explain: this.r.weapons.explain() });
+    return options;
   }
 
   // ===================================================================== point defence (fast loop)

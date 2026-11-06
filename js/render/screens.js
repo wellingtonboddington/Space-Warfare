@@ -169,7 +169,7 @@ export class ScreenManager {
     g.textAlign = 'right'; g.fillText(right, W - 8, 6);
   }
 
-  _overlay(id) { return this.ship.interior.get(`mfd.${id}.overlay`) === 1 || this.ship.interior.get(id === 'L' ? 'mfd.L.overlay' : 'mfd.C.overlay') === 1; }
+  _overlay(id) { return !!this._forceOverlay || this.ship.interior.get(`mfd.${id}.overlay`) === 1; }
 
   // ------------------------------------------------------------------ MFD L: imaging (RAW)
   _mfdL(sc, g, W, H, page, t) {
@@ -544,7 +544,7 @@ export class ScreenManager {
     if (page === 'LOG') {
       this._header(g, W, 'EVENT LOG', SYS, '');
       g.font = FONT(13); g.textAlign = 'left';
-      const ev = this.s.world.events.log.filter((e) => e.ship === ship.id || e.type.startsWith('kkv.') || e.type.startsWith('crew.')).slice(-16);
+      const ev = this.s.world.events.events.filter((e) => e.ship === ship.id || e.type.startsWith('kkv.') || e.type.startsWith('crew.')).slice(-16);
       let y = 30;
       for (const e of ev) { g.fillStyle = /impact|death|breach|arc/.test(e.type) ? WARN : SYS_DIM; g.fillText(`${e.t.toFixed(1).padStart(7)} ${e.type}`.slice(0, 54), 8, y); y += 17; }
     }

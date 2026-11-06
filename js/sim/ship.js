@@ -126,8 +126,8 @@ export class Ship {
       case 'radiators': this.exterior.radiators = args[0]; return true;
       case 'radar': this.exterior.radarMode = args[0]; this.exterior.radarTarget = args[1] ?? null; return true;
       case 'emcon': this.exterior.emcon = !!args[0]; if (args[0]) this.exterior.radarMode = 'standby'; return true;
-      case 'telescope': this.exterior.telescopeTarget = args[0]; return true;
-      case 'lidar': this.exterior.lidarTarget = args[0]; return true;
+      case 'telescope': this.exterior.telescopeTarget = args[0]; this.exterior.telescopeDir = args[0]; return true; // direction (MCI unit vector)
+      case 'lidar': this.exterior.lidarTarget = args[0]; this.exterior.lidarDir = args[0]; return true;
       case 'pd': { const t = this.pd[args[0]]; if (t) t.target = args[1] ?? null; return !!t; }
       case 'relay': this.exterior.relay = !!args[0]; return true;
       default: throw new Error(`unknown exterior command ${what}`);

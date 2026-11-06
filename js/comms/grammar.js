@@ -178,7 +178,12 @@ function fmtSlot(spec, slots, style) {
 }
 
 /** Leak-site ids → places a person would name. */
-const PLACES = ['the left cheek panel', 'the right cheek panel', 'the panel behind your left shoulder', 'the panel behind your right shoulder', 'the overhead', 'the left window frame', 'the right window frame', 'the floor by your boots'];
+const PLACES = ['the left cheek panel', 'the right cheek panel', 'the panel behind {p} left shoulder', 'the panel behind {p} right shoulder', 'the overhead', 'the left window frame', 'the right window frame', 'the floor by {p} boots'];
+// Control-id abbreviations → spoken names
+const ABBR = { CLNT: 'coolant', RAD: 'radiator', HS: 'heat sink', O2: 'oxygen', BKUP: 'backup', SENS: 'sensor', CAP: 'capacitor', CHG: 'charge', BATT: 'battery', LT: 'lights', OVL: 'overlay', SCRUB: 'scrubber', AVION: 'avionics', OPT: 'optics', HTR: 'heaters', ENG: 'engine', MWARN: 'master warning', MCAUT: 'master caution', SIL: 'silence', FUELCELL2: 'fuel cell two' };
+const spokenId = (x) => { const parts = x.split('_'); const last = parts.length > 1 && /^[A-D]$/.test(parts[parts.length - 1]) ? parts.pop() : null; return parts.map((w) => ABBR[w] ?? w.toLowerCase()).join(' ') + (last ? ` ${last}` : ''); };
+// Words that keep their capitals wherever they land
+const KEEP_CASE = 'Earth Moon Meridian Helios Tycho LiOH Severance Doctrine CONFIRM DENY';
 /** Make simulation labels speakable (track ids, units, control names, site ids). */
 export function speakable(s, style = {}) {
   return s
@@ -186,9 +191,9 @@ export function speakable(s, style = {}) {
     .replace(/\bT-(\d+)\b/g, (m) => F.trackName(m, style))
     .replace(/(\d+(?:\.\d+)?)\s*m\/s/g, '$1 metres per second')
     .replace(/(\d+(?:\.\d+)?)\s*km\b/g, '$1 kilometres')
-    .replace(/LEAK_(\d+)/g, (m, i) => PLACES[+i] ?? 'the hull')
-    .replace(/\bCB_([A-Z_]+)/g, (m, x) => `the ${x.toLowerCase().replace(/_/g, ' ')} breaker`)
-    .replace(/\b(SW|VLV|LVR|BT)_([A-Z0-9_]+)/g, (m, k, x) => `the ${x.toLowerCase().replace(/_/g, ' ')} ${k === 'VLV' ? 'valve' : k === 'LVR' ? 'lever' : k === 'BT' ? 'button' : 'switch'}`)
+    .replace(/LEAK_(\d+)/g, (m, i) => (PLACES[+i] ?? 'the hull').replace('{p}', style.role === 'pilot' ? 'my' : 'your'))
+    .replace(/\bCB_([A-Z0-9_]+)/g, (m, x) => `the ${spokenId(x)} breaker`)
+    .replace(/\b(SW|VLV|LVR|BT)_([A-Z0-9_]+)/g, (m, k, x) => `the ${spokenId(x)} ${k === 'VLV' ? 'valve' : k === 'LVR' ? 'lever' : k === 'BT' ? 'button' : 'switch'}`)
     .replace(/\b([A-Z]{3,}(?:\s+[A-Z]{3,})+)\b/g, (m) => m.toLowerCase())
     .replace(/\b(PD|RCS|KKV|IRST|AI|LiOH|O2|CO2|SENSOR BUS)\b/g, (m) => m);
 }
@@ -198,8 +203,8 @@ function finish(text, style) {
   let s = text.replace(/\s+/g, ' ').replace(/\s+([,.!?;:])/g, '$1').replace(/([,;:])(?=[^\s])/g, '$1 ').replace(/,\s*([.!?])/g, '$1').replace(/^[,\s]+/, '').trim();
   // Lower-case a rule/template capital that landed mid-sentence (after a comma, dash or colon),
   // then capitalise true sentence starts. Acronyms (two+ capitals) are left alone.
-  const keep = new Set(`${style.address ?? ''} ${style.keepCase ?? ''}`.split(/[^A-Za-z]+/).filter(Boolean));
-  s = s.replace(/([,—:]\s+)([A-Z])([a-z]+)/g, (m, a, b, c) => (keep.has(b + c) ? m : a + b.toLowerCase() + c));
+  const keep = new Set(`${style.address ?? ''} ${style.keepCase ?? ''} ${KEEP_CASE}`.split(/[^A-Za-z0-9]+/).filter(Boolean));
+  s = s.replace(/([,—:]\s+)([A-Z])([a-z]+)\b/g, (m, a, b, c) => (keep.has(b + c) ? m : a + b.toLowerCase() + c));
   s = s.replace(/(^|[.!?]\s+)([a-z])/g, (m, a, b) => a + b.toUpperCase());
   if (style.role === 'pilot') s = disfluency(s, style);
   if (!/[.!?—]$/.test(s)) s += '.';
@@ -215,7 +220,11 @@ export function disfluency(s, style) {
     const i = rng.int(0, Math.min(3, words.length - 1));
     words.splice(i, 0, `${words[i].replace(/[,.!?]$/, '')}—`);
   }
-  if (rng.chance(0.05 + 0.25 * st) && style.formality < 0.7) words.unshift(rng.pick(['Uh,', 'Okay,', 'Okay, okay,', 'Hang on,', 'Right,']));
+  if (rng.chance(0.05 + 0.25 * st) && style.formality < 0.7) {
+    // the sentence now continues after the filler: drop its capital unless it is a name or acronym
+    if (/^[A-Z][a-z]+\b/.test(words[0]) && !/^(I|I'm|I've|I'll|I'd)$/.test(words[0].replace(/[,.!?]$/, '')) && !KEEP_CASE.split(' ').includes(words[0].replace(/[,.!?]$/, '')) && words[0] !== style.address) words[0] = words[0][0].toLowerCase() + words[0].slice(1);
+    words.unshift(rng.pick(['Uh,', 'Okay,', 'Okay, okay,', 'Hang on,', 'Right,']));
+  }
   if (st > 0.8 && rng.chance(0.35)) return words.slice(0, Math.max(3, Math.ceil(words.length * 0.7))).join(' ').replace(/[.,!?;:—]+$/, '') + '—';
   return words.join(' ');
 }

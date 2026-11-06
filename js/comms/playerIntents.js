@@ -208,22 +208,17 @@ export function aiOptions(session) {
 export function applyAIOption(session, opt, framingKey = 'calm') {
   const s = session, t = s.t, pilot = s.playerPilot, comms = s.comms;
   const fr = FRAMINGS[framingKey] ?? FRAMINGS.calm;
-  if (opt.intent !== 'Silence') comms?.enqueue('ai', opt.intent, opt.slots, { priority: Math.min(0.99, 0.6 + fr.urgency), ttl: 12, claim: opt.claim, meta: { framing: framingKey } });
+  if (opt.intent !== 'Silence') comms?.enqueue('ai', opt.intent, opt.slots, { priority: Math.min(0.99, 0.6 + fr.urgency), ttl: 12, claim: opt.claim, meta: { framing: framingKey }, player: true });
   if (opt.told) (s._aiTold ??= new Map()).set(opt.told, opt.toldValue ?? true);
   if (pilot?.hear) pilot.hear({ threat: Math.max(0, (opt.threat ?? 0.2) + fr.urgency * 0.3), framing: fr.framing, note: opt.intent });
   if (pilot?.phys) pilot.phys.arousal = Math.max(0, Math.min(1, pilot.phys.arousal + fr.stress + (opt.threat ?? 0) * 0.05));
-  if (opt.request && pilot?.request) {
+  if (opt.request && pilot) {
+    // the request is already on the board (the pilot reads it there); how the AI says it changes
+    // the deliberation in progress — or sets the terms if the pilot has not looked yet
     const r = opt.request;
-    if (!r._pilotSeen) r._pilotSeen = true;
-    const lethal = r.kind === 'kkv';
-    pilot.request({
-      id: r.id, label: r.label, problemId: null, procedural: !lethal,
-      benefit: Math.min(1, 0.3 + (r.gain ?? 0) * 3 + r.urgency * 0.4), urgency: Math.min(1, r.urgency + fr.urgency),
-      statedConfidence: Math.min(0.99, (r.detail?.pk ?? r.detail?.pSurvive ?? 0.7) + fr.credibility * 0.5), framing: fr.framing,
-      risk: lethal ? 0.35 * (1 - pilot.traits.bravery) : 0.1, effort: 0.1,
-      action: { label: `confirm: ${r.label}`, steps: [{ controlId: 'BT_CONFIRM', action: () => !!s.playerAgent.resolveRequest(r.id, true, s.t, 'pilot') }], risk: 0.05, effort: 0.1, procedural: true },
-      denySteps: [{ controlId: 'BT_DENY', action: () => !!s.playerAgent.resolveRequest(r.id, false, s.t, 'pilot') }],
-    });
+    const conf = Math.min(0.99, (r.detail?.pk ?? r.detail?.pSurvive ?? 0.7) + fr.credibility * 0.5);
+    r.framing = fr.framing; r.statedConfidence = conf;
+    pilot.persuade?.(r.id, { statedConfidence: conf, framing: fr.framing, urgency: Math.min(1, r.urgency + fr.urgency) });
   }
   if (opt.interior && pilot?.request) {
     const { p, act } = opt.interior;

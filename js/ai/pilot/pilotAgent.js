@@ -170,8 +170,8 @@ export class PilotAgent {
       const lethal = r.kind === 'kkv';
       this.request({
         id: r.id, label: r.label, problemId: null, aiInitiated: true, procedural: !lethal,
-        benefit: Math.min(1, 0.3 + (r.gain ?? 0) * 3 + r.urgency * 0.4), urgency: r.urgency, statedConfidence: r.detail?.pk ?? r.detail?.pSurvive ?? 0.7,
-        framing: 0.6, risk: lethal ? 0.35 * (1 - this.traits.bravery) : 0.1, effort: 0.1,
+        benefit: Math.min(1, 0.3 + (r.gain ?? 0) * 3 + r.urgency * 0.4), urgency: r.urgency, statedConfidence: r.statedConfidence ?? r.detail?.pk ?? r.detail?.pSurvive ?? 0.7,
+        framing: r.framing ?? 0.6, risk: lethal ? 0.35 * (1 - this.traits.bravery) : 0.1, effort: 0.1,
         action: { label: `confirm: ${r.label}`, steps: [{ controlId: 'BT_CONFIRM', action: () => !!this.agent?.resolveRequest(r.id, true, this.ship.world.t, 'pilot') }], risk: 0.05, effort: 0.1, procedural: true },
         denySteps: [{ controlId: 'BT_DENY', action: () => !!this.agent?.resolveRequest(r.id, false, this.ship.world.t, 'pilot') }],
         boardRequest: r,

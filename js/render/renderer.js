@@ -11,7 +11,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Sky } from './sky.js';
 import { WorldView } from './worldView.js';
 import { R_MOON } from '../sim/orbital.js';
-import { dot, norm, len } from '../core/vec.js';
+import { dot, norm, len, qRotate } from '../core/vec.js';
 
 export const QUALITY = {
   low: { pixelRatio: 0.85, shadow: 1024, bloom: false, feedsPerFrame: 1, feedRes: 192, aa: false },
@@ -83,10 +83,43 @@ export class GameRenderer {
   }
 
   attach(session, assets) {
+    this.detach();
     this.session = session;
     this.assets = assets;
     this.sky = new Sky(this.farScene, assets, this.qName);
     this.world = new WorldView({ scene: this.nearScene, farScene: this.farScene, assets, session, quality: this.qName });
+  }
+
+  /** Remove everything a previous session put in the scenes (lights stay). */
+  detach() {
+    const keep = new Set([this.sun, this.sun.target, this.moonBounce, this.earthshine, this.earthshine.target]);
+    for (const sc of [this.farScene, this.nearScene]) {
+      for (const o of [...sc.children]) {
+        if (keep.has(o)) continue;
+        sc.remove(o);
+        o.traverse?.((x) => {
+          if (x.geometry && !x.geometry.userData?.shared) x.geometry.dispose?.();
+          const mats = Array.isArray(x.material) ? x.material : x.material ? [x.material] : [];
+          for (const m of mats) if (!m.userData?.shared) m.dispose?.();
+        });
+      }
+    }
+    this.session = null; this.sky = null; this.world = null;
+  }
+
+  /** Render one frame of a custom view (AI-POV viewports), same two-pass scheme. */
+  renderView(cam, viewport) {
+    const r = this.renderer;
+    for (const c of [this.farCam, this.nearCam]) { c.position.copy(cam.position); c.quaternion.copy(cam.quaternion); c.fov = cam.fov; c.aspect = viewport.w / viewport.h; c.updateProjectionMatrix(); }
+    r.setRenderTarget(null);
+    r.setViewport(viewport.x, viewport.y, viewport.w, viewport.h);
+    r.setScissor(viewport.x, viewport.y, viewport.w, viewport.h);
+    r.setScissorTest(true);
+    r.clear(true, true, true);
+    r.render(this.farScene, this.farCam);
+    r.clearDepth();
+    r.render(this.nearScene, this.nearCam);
+    r.setScissorTest(false);
   }
 
   resize() {
@@ -101,6 +134,12 @@ export class GameRenderer {
    * @param {object} v {origin: MCI floating-origin position, camWorldPos: THREE.Vector3 (relative to origin), camQuat: THREE.Quaternion, fov, t, dt}
    */
   render(v) {
+    this.prepare(v);
+    this.composer.render(v.dt);
+  }
+
+  /** Update world/sky/lights for a camera without drawing (AI-POV draws its own composite). */
+  prepare(v) {
     const s = this.session, w = s.world;
     const sunDir = w.sunDir;
     this.world.update(v.origin, w.t, v.dt);
@@ -132,7 +171,16 @@ export class GameRenderer {
     const moonInView = Math.max(0, fwd.dot(toMoon) + fillAngle) * subSun;
     const sunInView = Math.max(0, fwd.dot(new THREE.Vector3(...sunDir)) - Math.cos(v.fov ? v.fov * Math.PI / 360 : 0.6)) > 0 ? 1 : 0;
     this.sky.update({ origin: v.origin, camPos: v.camWorldPos, sunDir, earthPos: earth, moonRot: w.eph.moonRotation(w.t), t: w.t, dt: v.dt, view: { moonFill: Math.min(1, moonInView), sunInView } });
-    this.composer.render(v.dt);
+    // Eye/camera adaptation for the whole frame: sunlight into the canopy, sunlit regolith in
+    // view, or only the instrument lights. Shade is genuinely dark; the eye opens up slowly.
+    const q = s.playerShip.q, nose = qRotate(q, [0, 1, 0]), up = qRotate(q, [0, 0, 1]);
+    const canopy = norm([nose[0] + 0.6 * up[0], nose[1] + 0.6 * up[1], nose[2] + 0.6 * up[2]]);
+    const cabinSun = sunVis * Math.max(0, dot(sunDir, canopy));
+    const key = v.interior === false ? 0.6 + 0.6 * sunVis : 0.06 + 0.9 * cabinSun + 0.5 * Math.min(1, moonInView) + 0.15 * sunVis;
+    const target = Math.max(0.7, Math.min(3.5, 0.9 / key));
+    this.exposure = this.exposure ?? target;
+    this.exposure += (target - this.exposure) * Math.min(1, (v.dt ?? 0.016) * (target > this.exposure ? 0.35 : 2.5));
+    this.renderer.toneMappingExposure = this.exposure;
   }
 
   dispose() { window.removeEventListener('resize', this.onResize); this.renderer.dispose(); this.container.removeChild(this.renderer.domElement); }

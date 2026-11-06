@@ -49,6 +49,16 @@ export class CockpitView {
     this.leakFx = new Particles(400, { size: 0.01, color: 0xe8eef8 });
     this.root.add(this.leakFx.points);
     this.arcs = this._arcs();
+    // near-infrared illuminators beside each cabin camera: invisible to the pilot, so they are lit
+    // only while a camera feed is being rendered (what the AI sees in a dark cabin)
+    this.irLights = [];
+    for (const id of ['CAM_PILOT', 'CAM_WIDE', 'CAM_LEFT', 'CAM_RIGHT']) {
+      const n = this.nodes.get(id);
+      if (!n) continue;
+      const l = new THREE.PointLight(0xffffff, 0, 2.5, 2);
+      l.position.set(0, -0.04, -0.12); // just outside the dome, below the lens
+      n.add(l); this.irLights.push(l);
+    }
     this.hover = null;
   }
 
@@ -104,6 +114,11 @@ export class CockpitView {
   }
 
   _lights() {
+    // integral panel lighting (edge strips): follows the cabin-lights rotary, dims with the bus
+    this.integral = [];
+    this.model?.traverse((o) => {
+      if (o.isMesh && /^MAT_EMISSIVE/.test(o.material?.name ?? '')) { o.material = o.material.clone(); this.integral.push(o.material); }
+    });
     this.model?.traverse((o) => {
       if (!o.isMesh || !/^MAT_LIGHT/.test(o.material?.name ?? '')) return;
       let name = o.name; let p = o;
@@ -122,12 +137,14 @@ export class CockpitView {
     this.lamps = [];
     for (const lp of layout.lamps) {
       const anchor = this.nodes.get(`LAMP_${lp.id}`);
-      const light = lp.kind === 'spot' ? new THREE.SpotLight(0xff3020, 0, 1.6, 0.9, 0.6, 2) : new THREE.PointLight(0xff3020, 0, 1.6, 2);
-      if (anchor) anchor.add(light); else { light.position.set(...lp.pos); this.root.add(light); }
+      const light = lp.kind === 'spot' ? new THREE.SpotLight(0xff3020, 0, 1.8, 0.95, 0.7, 2) : new THREE.PointLight(0xff3020, 0, 1.6, 2);
+      if (anchor) anchor.add(light); else { light.position.set(lp.pos[0], lp.pos[2], -lp.pos[1]); (this.model ?? this.conv).add(light); }
       if (light.isSpotLight) {
+        // aim at the layout target, placed in the cockpit model frame (Blender x,y,z → three x,z,−y)
         const tgt = new THREE.Object3D();
-        if (lp.target) { tgt.position.set(lp.target[0] - lp.pos[0], lp.target[2] - lp.pos[2], -(lp.target[1] - lp.pos[1])); }
-        (anchor ?? this.root).add(tgt); light.target = tgt;
+        const tp = lp.target ?? [lp.pos[0], lp.pos[1] + 0.5, lp.pos[2] - 0.3];
+        tgt.position.set(tp[0], tp[2], -tp[1]);
+        (this.model ?? this.conv).add(tgt); light.target = tgt;
       }
       light.castShadow = false;
       this.lamps.push(light);
@@ -144,6 +161,8 @@ export class CockpitView {
     }
     return out;
   }
+
+  setIR(on) { for (const l of this.irLights) l.intensity = on ? 0.05 : 0; }
 
   /** Assign a screen material (from ScreenManager). */
   setScreenMaterial(id, mat) {
@@ -192,10 +211,12 @@ export class CockpitView {
       if (!powered && !/TALLY/.test(n)) on *= 0.05;
       L.on += (on - L.on) * Math.min(1, dt * 20);
       const col = /LAMP/.test(n) ? (cabin === 2 ? LIGHT_COLORS.white : LIGHT_COLORS.red) : L.color;
-      L.mat.emissive.copy(col).multiplyScalar(L.on * 2.4 * flick);
+      L.mat.emissive.copy(col).multiplyScalar(L.on * (/TALLY/.test(n) ? 1.1 : 2.0) * flick);
     }
     // instrument flood lamps (red night lighting or white)
-    for (const lamp of this.lamps) { lamp.color.set(cabin === 2 ? 0xfff2e0 : 0xff2a14); lamp.intensity = (cabin === 0 ? 0 : cabin === 2 ? 1.3 : 0.9) * (powered ? flick : 0.05); }
+    for (const m of this.integral) { m.emissive.set(cabin === 2 ? 0xfff0dc : 0xff3018); m.emissiveIntensity = (cabin === 0 ? 0 : cabin === 2 ? 0.5 : 0.18) * (powered ? flick : 0.03); }
+    // physically scaled (candela): red night lighting is dim; the eye adapts (see exposure)
+    for (const lamp of this.lamps) { lamp.color.set(cabin === 2 ? 0xfff2e0 : 0xff2a14); lamp.intensity = (cabin === 0 ? 0 : cabin === 2 ? 0.32 : 0.07) * (lamp.isPointLight ? 0.45 : 1) * (powered ? flick : 0.05); }
     // --- hull breaches: hissing spray at the real leak sites
     const L = ship.life;
     if (L) for (const b of L.breaches) {

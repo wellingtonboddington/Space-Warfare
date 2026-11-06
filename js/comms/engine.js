@@ -58,7 +58,9 @@ export class CommsEngine {
    * @param {object} slots   REAL values
    * @param {object} o {priority, ttl, key, claim, reply}
    */
-  enqueue(speaker, intent, slots, { priority = 0.5, ttl = 10, key = null, claim = null, meta = null } = {}) {
+  enqueue(speaker, intent, slots, { priority = 0.5, ttl = 10, key = null, claim = null, meta = null, player = false } = {}) {
+    // AI-POV: the player is the AI's only voice
+    if (speaker === 'ai' && !this.aiAgentSpeaks && !player) return null;
     if (speaker === 'ai' && this.t < this.quietUntil && priority < 0.75) return null;
     if (key) this.queue = this.queue.filter((q) => q.key !== key);
     const item = { speaker, intent, slots, priority, tCreated: this.t, ttl, key, claim, meta };

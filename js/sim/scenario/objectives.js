@@ -86,7 +86,7 @@ export class ObjectiveEvaluator {
       const cause = player.destroyed;
       if (this.o.type === 'recon') { const last = s.playerAgent?.relays.at(-1); const g = last ? this.gradeRelay(last) : null; return end('destroyed', { cause, relay: g, posthumous: !!(g && g.fraction >= this.o.minFraction) }); }
       if (this.o.type === 'picket') { const depot = s.byKey(this.o.protectKey); return end('destroyed', { cause, assetSurvived: depot?.alive ?? false }); }
-      if (this.o.type === 'strike') { const tg = s.byKey(this.o.targetKey); return end('destroyed', { cause, targetDestroyed: !(tg?.alive ?? true) }); }
+      if (this.o.type === 'strike') { const tg = s.byKey(this.o.targetKey); return end('destroyed', { cause, targetDestroyed: !(tg?.alive ?? true), targetDisabled: tg ? missionKill(tg) : null }); }
       return end('destroyed', { cause });
     }
     if (this.o.type === 'picket') {
@@ -100,12 +100,14 @@ export class ObjectiveEvaluator {
     } else if (this.o.type === 'strike') {
       const tg = s.byKey(this.o.targetKey);
       const myKKVs = world.ofKind('kkv').some((k) => k.ownerId === player.id);
-      if (!tg.alive && !myKKVs && (gone || timeUp || hostiles.filter((h) => len(sub(h.pos, player.pos)) < 300e3).length === 0)) {
+      const killed = !tg.alive || missionKill(tg);
+      if (killed && !this.killedAt) { this.killedAt = t; world.events.emit(t, 'objective.targetDisabled', { ship: tg.id, destroyed: !tg.alive, how: tg.alive ? missionKill(tg) : 'destroyed' }); }
+      if (killed && !myKKVs && (gone || timeUp || hostiles.filter((h) => len(sub(h.pos, player.pos)) < 300e3).length === 0)) {
         const dv = player.deltaVRemaining();
-        return end(dv >= this.o.reserveDv ? 'success' : 'pyrrhic', { targetDestroyed: true, dvRemaining: Math.round(dv), pilotAlive });
+        return end(dv >= this.o.reserveDv ? 'success' : 'pyrrhic', { targetDestroyed: !tg.alive, targetDisabled: missionKill(tg) || 'destroyed', dvRemaining: Math.round(dv), pilotAlive });
       }
-      if (timeUp && !tg.alive) { const dv = player.deltaVRemaining(); return end(dv >= this.o.reserveDv ? 'success' : 'pyrrhic', { targetDestroyed: true, dvRemaining: Math.round(dv), pilotAlive, stillContested: true }); }
-      if (timeUp || (tg.alive && gone && t > 300)) return end('failed', { reason: 'target-survived', pilotAlive });
+      if (timeUp && killed) { const dv = player.deltaVRemaining(); return end(dv >= this.o.reserveDv ? 'success' : 'pyrrhic', { targetDestroyed: true, dvRemaining: Math.round(dv), pilotAlive, stillContested: true }); }
+      if (timeUp || (!killed && gone && t > 300)) return end('failed', { reason: 'target-survived', pilotAlive });
     } else if (this.o.type === 'recon') {
       const relays = s.playerAgent?.relays ?? [];
       const best = relays.map((r) => this.gradeRelay(r)).sort((a, b) => b.fraction - a.fraction)[0];
@@ -116,4 +118,22 @@ export class ObjectiveEvaluator {
     }
     return null;
   }
+}
+
+/**
+ * Mission kill: the target still exists but can no longer do its job. Read from the damage model,
+ * never assumed: crew dead, command/power destroyed, every engine out, or (a hauler) its cargo gone.
+ * Returns a short reason string or null.
+ */
+export function missionKill(ship) {
+  if (!ship.alive) return 'destroyed';
+  if (ship.crewAlive === 0) return 'crew-killed';
+  const H = (k) => ship.componentHealth(k, 1);
+  for (const k of ['cabin', 'control', 'reactor', 'powerplant']) if (ship.components.has(k) && H(k) < 0.2) return `${k}-destroyed`;
+  const engines = [...ship.components.keys()].filter((k) => /^engine/.test(k));
+  if (engines.length && engines.every((k) => H(k) < 0.2)) return 'propulsion-destroyed';
+  if (ship.spec.hull === 'hauler' && ship.components.has('tank_cargo') && H('tank_cargo') < 0.2) return 'cargo-destroyed';
+  const tanks = [...ship.components.keys()].filter((k) => /^tank_(fuel|ox|main)/.test(k));
+  if (tanks.length && tanks.every((k) => H(k) < 0.2)) return 'propellant-lost';
+  return null;
 }

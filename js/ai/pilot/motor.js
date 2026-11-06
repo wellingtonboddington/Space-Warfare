@@ -26,6 +26,7 @@ const OPERATE_TIME = { toggle: 0.3, toggle_guarded: 0.9, breaker: 0.45, rotary: 
 
 /** Locations that are not controls (leak sites, items) — reach targets for multi-step tasks. */
 export function sitePosition(id) {
+  if (id === 'VISOR') return [0.06, 0.05, 0.14]; // hand to the visor edge, above the eyes
   const leak = layout.leakSites.find((l) => l.id === id);
   if (leak) return leak.pos;
   return CONTROL_POS[id] ?? [0, 0.4, -0.4];
