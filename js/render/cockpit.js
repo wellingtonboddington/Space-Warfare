@@ -70,18 +70,7 @@ export class CockpitView {
     for (const [name, n] of this.nodes) if (/^SCREEN_/.test(name)) n.traverse((o) => { if (o.isMesh) { o.userData.screenId = name.slice(7); this.pickables.push(o); } });
   }
 
-  /** Apply an extras-described animation to a node. k may be fractional (smooth transitions). */
-  _applyAnim(node, k) {
-    const ex = node.userData;
-    if (!ex.anim || !ex.values) return false;
-    const i0 = Math.floor(k), i1 = Math.min(ex.values.length - 1, i0 + 1), f = k - i0;
-    const val = (ex.values[i0] ?? 0) * (1 - f) + (ex.values[i1] ?? 0) * f;
-    const delta = val - (ex.values[0] ?? 0);
-    const ax = AXIS[(ex.axis ?? 'X').toUpperCase().replace(/^-/, '')] ?? AXIS.X;
-    if (ex.anim === 'rotate') node.quaternion.copy(node.userData.rest).multiply(_q.setFromAxisAngle(ax, delta * DEG));
-    else node.position.copy(node.userData.restPos).addScaledVector(ax.clone().applyQuaternion(node.userData.rest), delta);
-    return true;
-  }
+  _applyAnim(node, k) { return applyExtrasAnim(node, k); }
 
   _labels() {
     // Label atlas from the layout: engraved off-white on dark plates; annunciator captions white on black.
@@ -250,6 +239,24 @@ export class CockpitView {
 
 // cockpit-space (Blender) vector → cockpit model local (three, before conv) — the root's conv group handles the rest
 function rot(v) { return v; }
+
+/**
+ * Apply a glTF-extras-described animation ({anim, axis, values}) to a node. `k` indexes the
+ * states and may be fractional (smooth transitions). The rest transform is cached on first use.
+ */
+export function applyExtrasAnim(node, k) {
+  const ex = node.userData;
+  if (!ex.anim || !ex.values) return false;
+  ex.rest ??= node.quaternion.clone();
+  ex.restPos ??= node.position.clone();
+  const i0 = Math.floor(k), i1 = Math.min(ex.values.length - 1, i0 + 1), f = k - i0;
+  const val = (ex.values[i0] ?? 0) * (1 - f) + (ex.values[i1] ?? 0) * f;
+  const delta = val - (ex.values[0] ?? 0);
+  const ax = AXIS[(ex.axis ?? 'X').toUpperCase().replace(/^-/, '')] ?? AXIS.X;
+  if (ex.anim === 'rotate') node.quaternion.copy(ex.rest).multiply(_q.setFromAxisAngle(ax, delta * DEG));
+  else node.position.copy(ex.restPos).addScaledVector(ax.clone().applyQuaternion(ex.rest), delta);
+  return true;
+}
 
 /** Gauge readings 0..1 from real system values. */
 export function gaugeValue(bind, ship) {
