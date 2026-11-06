@@ -89,7 +89,7 @@ export class Menu {
       const o = sc.objective ?? {};
       const intel = (sc.intel ?? []).map((x) => `<li>${esc(typeof x === 'string' ? x : x.text ?? JSON.stringify(x))}</li>`).join('');
       const you = game.mode === 'human' ? `${pilotName(pilot)} (you)` : pilotName(pilot);
-      const hist = (pilot?.history?.entries ?? pilot?.history ?? []).slice?.(-3) ?? [];
+      const hist = (pilot?.history?.entries ?? []).slice(-3);
       this.el.innerHTML = `<div class="wrap"><div class="brief">
         <div style="letter-spacing:.3em;font-size:12px;color:#8d9a8a">BRIEFING · SEED ${sc.seed} · ${esc(e.faction)} · ${esc(e.name ?? e.callsign ?? '')}</div>
         <h2>OBJECTIVE</h2><div>${esc(o.text ?? o.summary ?? describeObjective(o, game.opts.variant))}</div>
@@ -97,8 +97,8 @@ export class Menu {
         <h2>CREW</h2>
         <div><span class="k">PILOT</span> ${esc(you)}${pilot?.rank ? ` · ${esc(pilot.rank)}` : ''}${pilot?.serviceYears ? ` · ${pilot.serviceYears} yrs` : ''}</div>
         <div><span class="k">SHIP MIND</span> ${esc(ai?.designation ?? 'AI')} ${game.mode === 'ai' ? '(you)' : ''} · certified feature-only, auditable</div>
-        <div><span class="k">THEIR HISTORY</span> ${rel ? `${rel.sorties ?? 0} sorties together · trust ${(rel.trustMean * 100).toFixed(0)}%` : 'first sortie together'}</div>
-        ${hist.length ? `<div class="k" style="margin-top:6px">${hist.map((h) => esc(h.text ?? h.summary ?? h.type ?? '')).join(' · ')}</div>` : ''}
+        <div><span class="k">THEIR HISTORY</span> ${rel ? `trust ${(rel.trustMean * 100).toFixed(0)}%${rel.notes?.length ? ` · ${esc(rel.notes.slice(-2).map((n) => n.text ?? n).join(' · '))}` : ''}` : 'first sortie together'}</div>
+        ${hist.length ? `<div class="k" style="margin-top:6px">${hist.map((h) => esc(h.text ?? h.summary ?? h.incident ?? h.type ?? '')).join(' · ')}</div>` : ''}
         <div class="opts" style="margin-top:20px"><button class="go">BEGIN ▸</button><button class="go" data-back style="background:#101611;color:#bcd0b6;border-color:#2c3a30">◂ BACK</button></div>
       </div></div>`;
       this.el.querySelector('.go:not([data-back])').onclick = () => resolve(true);
@@ -110,7 +110,7 @@ export class Menu {
   hide() { this.el.remove(); }
 }
 
-function pilotName(p) { if (!p) return 'Pilot'; const n = p.name ?? {}; return `${n.first ?? ''} ${n.last ?? ''}`.trim() + (p.callsign ? ` "${p.callsign}"` : ''); }
+function pilotName(p) { if (!p) return 'Pilot'; return `${p.name ?? ''} ${p.surname ?? ''}`.trim() + (p.nickname ? ` "${p.nickname}"` : ''); }
 function describeObjective(o, v) {
   if (v === 'recon') return 'Classify the contacts in the patrol box to a confidence the fleet can act on, relay the track file, and come home.';
   if (v === 'skirmisher') return 'Find and kill or disable the target element, then keep enough Δv to break off.';

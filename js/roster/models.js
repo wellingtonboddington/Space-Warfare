@@ -6,7 +6,7 @@
 // Pass 2 will move the pointer on death; nothing else needs to change.
 
 let SEQ = 0;
-const nid = (p) => `${p}-${(++SEQ).toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
+const nid = (p) => `${p}-${(++SEQ).toString(36)}`;
 
 export class HistoryLog {
   constructor(entries = []) { this.entries = entries; }
@@ -61,3 +61,6 @@ export class ShipRecord {
 export class Assignment {
   constructor({ shipId, pilotId, aiId, since }) { Object.assign(this, { shipId, pilotId, aiId, since }); }
 }
+
+/** Per-session id sequences (determinism: the same seed must replay the same world). */
+export function resetRosterIds() { SEQ = 0; }

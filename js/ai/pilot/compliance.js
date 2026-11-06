@@ -88,3 +88,6 @@ export function complianceConsiderations(r, ctx) {
   refuse.push({ name: 'status quo', value: 0.35, curve: Curves.linear(), weight: 0.5 });
   return { comply, refuse };
 }
+
+/** Per-session id sequences (determinism: the same seed must replay the same world). */
+export function resetDeliberationIds() { DEC_SEQ = 0; }

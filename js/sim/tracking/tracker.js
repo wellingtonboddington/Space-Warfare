@@ -609,3 +609,6 @@ export class Tracker {
   /** Propagate all tracks to time t (for display / decision making). */
   predictAll(t) { for (const tr of this.tracks) tr.predict(t); }
 }
+
+/** Per-session id sequences (determinism: the same seed must replay the same world). */
+export function resetTrackIds() { TRACK_SEQ = 0; }

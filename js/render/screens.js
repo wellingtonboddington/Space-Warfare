@@ -430,7 +430,7 @@ export class ScreenManager {
       g.font = FONT(14); g.textAlign = 'left'; g.textBaseline = 'top';
       const res = cl.claims.filter((c) => c.status !== 'open');
       const brier = cl.brier();
-      g.fillStyle = AI; g.fillText(`CLAIMS ${cl.claims.length}  RESOLVED ${res.length}  BRIER ${Number.isFinite(brier) ? brier.toFixed(3) : '—'}`, 8, 30);
+      g.fillStyle = AI; g.fillText(`CLAIMS ${cl.claims.length}  RESOLVED ${res.length}  BRIER ${brier != null && Number.isFinite(brier) ? brier.toFixed(3) : '—'}`, 8, 30);
       // reliability diagram
       const bins = cl.reliability(5);
       const box = { x: W - 170, y: 60, w: 150, h: 150 };
@@ -439,13 +439,13 @@ export class ScreenManager {
       for (const b of bins) {
         if (!b.n) continue;
         g.fillStyle = AI;
-        g.beginPath(); g.arc(box.x + b.p * box.w, box.y + box.h - b.freq * box.h, 2 + Math.min(6, b.n), 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.arc(box.x + b.meanP * box.w, box.y + box.h - b.freq * box.h, 2 + Math.min(6, b.n), 0, Math.PI * 2); g.fill();
       }
       g.fillStyle = AI_DIM; g.font = FONT(11); g.fillText('stated →', box.x, box.y + box.h + 4);
       let y = 56; g.font = FONT(13);
       for (const c of cl.claims.slice(-11).reverse()) {
-        g.fillStyle = c.status === 'open' ? AI_DIM : c.status === 'correct' ? OK : WARN;
-        g.fillText(`${String(Math.round(c.p * 100)).padStart(3)}% ${c.text ?? c.kind}`.slice(0, 34) + ` ${c.status === 'open' ? '…' : c.status === 'correct' ? '✓' : '✗'}`, 8, y);
+        g.fillStyle = c.status === 'open' ? AI_DIM : c.status === 'right' ? OK : WARN;
+        g.fillText(`${String(Math.round(c.p * 100)).padStart(3)}% ${c.kind}: ${c.statement ?? ''}`.slice(0, 34) + ` ${c.status === 'open' ? '…' : c.status === 'right' ? '✓' : '✗'}`, 8, y);
         y += 18;
       }
     }

@@ -162,9 +162,23 @@ export class CommsEngine {
     }
   }
 
+  /**
+   * Self-calibration: the AI shrinks what it SAYS toward 50/50 when its own record (claims it saw
+   * resolved — never hidden truth) shows it has been overconfident. The posterior is untouched.
+   */
+  _stated(p) {
+    const seen = this.s.claims.claims.filter((c) => c.status !== 'open' && c.status !== 'void' && c.how !== 'truth-only');
+    if (seen.length < 4) return p;
+    const brier = seen.reduce((a, c) => a + (c.p - (c.status === 'right' ? 1 : 0)) ** 2, 0) / seen.length;
+    const k = Math.max(0.45, Math.min(1, 1 - 1.6 * Math.max(0, brier - 0.1)));
+    this.selfCalibration = { k, brier, n: seen.length };
+    return 0.5 + (p - 0.5) * k;
+  }
+
   _classification(tr, d) {
-    const fam = d.after;
-    if (!fam || fam.cls === 'unknown') return;
+    const fam0 = d.after;
+    if (!fam0 || fam0.cls === 'unknown') return;
+    const fam = { ...fam0, p: this._stated(fam0.p) };
     const told = this.told.get(tr.id);
     const runner = tr.classifier.family()[1] ?? { cls: 'unknown', p: 0 };
     const slots = { track: tr.label, family: fam.cls, p: fam.p, runnerUp: runner.cls, pRunnerUp: runner.p, variant: variantOf(d.top?.cls) };
@@ -295,7 +309,7 @@ export class CommsEngine {
 
   _onClaimResolved(c) {
     const pilot = this.pilot;
-    if (!pilot?.trust || c.how === 'truth-only') return;
+    if (!pilot?.trust?.claimResolved || c.how === 'truth-only') return;
     const pStated = c.p >= 0.5 ? c.p : 1 - c.p;
     pilot.trust.claimResolved(this.t, pStated, c.status === 'right', `${c.kind}: ${c.statement ?? ''}`);
   }
@@ -324,6 +338,10 @@ export function attachClaimsResolver(session) {
   ev.on('ship.destroyed', (e) => {
     for (const c of claims.open()) if (c.kind === 'kill' && c.kkvs?.includes(e.projectile)) { c.truth = true; claims.resolve(c, true, e.t, 'kill'); }
   });
+  // impact predictions assumed we kept coasting and the KKV stayed intact
+  ev.on('burn.ignite', (e) => { if (e.ship !== me().id) return; for (const c of claims.open()) if (c.kind === 'kkvImpact' && c.target === 'us' && e.t > c.t + 0.5) claims.void(c, e.t, 'premise: we manoeuvred'); });
+  const intactGone = (e) => { for (const c of claims.open()) if (c.kind === 'kkvImpact') { const tr = session.playerMind.track(c.subject); if (tr && (tr._birthTruth === e.kkv)) claims.void(c, e.t, 'premise: KKV killed'); } };
+  ev.on('kkv.fragmented', intactGone); ev.on('kkv.seekerKilled', intactGone);
   session.world.addSystem('claims', 1, (w, t) => {
     for (const c of claims.open()) {
       if (c.deadline && t > c.deadline) {
@@ -341,3 +359,6 @@ export function attachClaimsResolver(session) {
     }
   }, 0.07);
 }
+
+/** Per-session id sequences (determinism: the same seed must replay the same world). */
+export function resetUtteranceIds() { UTT = 0; }

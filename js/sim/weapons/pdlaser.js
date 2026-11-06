@@ -11,7 +11,8 @@ import { sub, add, scale, len, norm, dot, qRotate, angle } from '../../core/vec.
 import { slerpDir } from '../sensors/suiteUtil.js';
 import { projectedArea } from '../sensors/signature.js';
 
-const ACQ_FIELD = 2.5e-3;   // rad: beam director acquisition field
+const ACQ_FIELD = 2.5e-3;   // rad: beam director fine-track field
+const ACQ_COARSE = 15e-3;   // rad: coarse acquisition camera field (searches around the cue)
 const JITTER = 1.2e-6;      // rad: closed-loop pointing jitter
 const ABLATION_I = 2e7;     // W/m²: onset of significant ablation
 const CM = 3e-5;            // N/W: ablation momentum coupling
@@ -35,8 +36,10 @@ export function pdStep(ship, world, dt, rng) {
     tur.blocked = false;
     tur.dir = slerpDir(tur.dir, cmd.dir, tur.spec.slewRate * dt);
     if (angle(tur.dir, cmd.dir) > 2e-3) continue; // still slewing
-    // Closed-loop acquisition: nearest real object to the beam axis inside the acquisition field
-    let tgt = null, best = ACQ_FIELD;
+    // Closed-loop acquisition: the director's optical tracker locks the most prominent object in
+    // its acquisition field (bigger glint, closer to the axis) — a cloud of small fragments next
+    // to an intact KKV does not capture it as easily as the nearest-pixel rule would.
+    let tgt = null, best = 0;
     for (const e of world.entities.values()) {
       if (e === ship || !e.history || !e.signatureParams) continue;
       const s = e.history.retarded(ship.pos, t);
@@ -44,8 +47,22 @@ export function pdStep(ship, world, dt, rng) {
       const d = sub(s.pos, ship.pos), R = len(d);
       if (R > 600e3) continue;
       const off = Math.acos(Math.max(-1, Math.min(1, dot(scale(d, 1 / R), tur.dir))));
-      if (off < best) { best = off; tgt = { e, s, R, u: scale(d, 1 / R) }; }
+      if (off >= ACQ_COARSE) continue;
+      const A = e.signatureParams().area, area = Array.isArray(A) ? Math.max(...A) : A;
+      const prom = Math.sqrt(Math.max(1e-4, area || 1e-4)) / (1 + 6 * (off / ACQ_COARSE) ** 2);
+      if (prom > best) { best = prom; tgt = { e, s, R, u: scale(d, 1 / R), off }; }
     }
+    // Acquisition: inside the fine field the director locks at once; anywhere in the coarse field
+    // it needs search time that grows with the cue error, and it must keep the same object.
+    if (tgt && tgt.off > ACQ_FIELD) {
+      if (tur.acq?.id !== tgt.e.id) tur.acq = { id: tgt.e.id, t: 0 };
+      tur.acq.t += dt;
+      if (tur.acq.t < 0.4 + 2.5 * (tgt.off / ACQ_COARSE)) { tur.searching = true; continue; }
+    } else if (!tgt) tur.acq = null;
+    // No optical lock, no shot: the director holds fire until its tracker acquires something in
+    // the field (a bad track wastes time, not the capacitor)
+    tur.searching = !tgt;
+    if (!tgt) continue;
     // Energy budget
     const P = tur.spec.opticalPower;
     const elecJ = (P / tur.spec.efficiency) * dt;
@@ -55,7 +72,6 @@ export function pdStep(ship, world, dt, rng) {
     tur.firing = true;
     ship.weaponsHeatW += (P / tur.spec.efficiency) * (1 - tur.spec.efficiency) * frac;
     tur.energyFired = (tur.energyFired ?? 0) + P * frac * dt;
-    if (!tgt) continue; // firing into empty space: the track was wrong
     tur.dir = tgt.u; // director locks
     // Spot and delivered power
     const w = 1.22 * tur.spec.wavelength * tgt.R / tur.spec.mirror + JITTER * tgt.R;

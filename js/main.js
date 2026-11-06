@@ -105,7 +105,7 @@ class App {
       if (g.mode === 'human') this.hud.setDim(ph ? (ph.alive ? (ph.conscious ? Math.max(0, (ph.g - 3) / 3) * 0.5 : 0.92) : 1) : 0);
       if (this.hud.chatOpen && (this._chatRefresh = (this._chatRefresh ?? 0) + dt) > 1) { this._chatRefresh = 0; this.hud.refreshChat(this._options()); }
       g.renderFeeds();
-      if (g.mode === 'human') this.gr.render({ origin: ship.pos.slice(), camWorldPos: this.ctrl.camPos, camQuat: this.ctrl.camQuat, fov: this.gr.nearCam.fov, dt });
+      if (g.mode === 'human') this.gr.render({ origin: ship.pos.slice(), camWorldPos: this.ctrl.camPos, camQuat: this.ctrl.camQuat, fov: this.gr.nearCam.fov, dt, cabinSun: g.cabinSun });
       else this.ctrl.render(dt);
       this.debug?.update?.(g);
       if (s.outcome && !g.ended) this._onOutcome();

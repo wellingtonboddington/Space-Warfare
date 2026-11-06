@@ -21,6 +21,13 @@ import { ClaimsRegistry } from '../ai/claims.js';
 import { CommsEngine, attachClaimsResolver } from '../comms/engine.js';
 import { ObjectiveEvaluator } from './scenario/objectives.js';
 import { RNG } from '../core/rng.js';
+import { resetShipIds } from './ship.js';
+import { resetProjectileIds } from './weapons/kkv.js';
+import { resetTrackIds } from './tracking/tracker.js';
+import { resetDeliberationIds } from '../ai/pilot/compliance.js';
+import { resetRequestIds } from '../ai/ship/shipAgent.js';
+import { resetClaimIds } from '../ai/claims.js';
+import { resetUtteranceIds } from '../comms/engine.js';
 
 let MODELS = null;
 export const classModels = () => (MODELS ??= buildClassModels(new RNG('class-models-v1')));
@@ -33,6 +40,7 @@ export class Session {
    * @param {object} o  { mode:'human'|'ai'|'batch', imageSensors?:bool, pilotFactory?:(ship,agent,ctx)=>pilot }
    */
   constructor(scenario, { mode = 'batch', imageSensors = mode !== 'batch', pilotFactory = null, fullPilot = mode !== 'batch', comms = mode !== 'batch' } = {}) {
+    for (const reset of [resetShipIds, resetProjectileIds, resetTrackIds, resetDeliberationIds, resetRequestIds, resetClaimIds, resetUtteranceIds]) reset();
     this.scenario = scenario;
     this.mode = mode;
     this.roster = scenario.roster;

@@ -10,6 +10,7 @@
 //   5. an intelligence estimate (the AI's prior) that is itself noisy.
 // Rejection sampling discards degenerate geometry (e.g. a crossing hidden behind the Moon).
 
+import { resetRosterIds } from '../../roster/models.js';
 import { RNG } from '../../core/rng.js';
 import { circularState, propagate, rk4Step, MU_MOON, moonOccludes } from '../orbital.js';
 import { add, sub, scale, norm, cross, len, dot, qLookNose, qFromAxisAngle, qRotate } from '../../core/vec.js';
@@ -37,6 +38,7 @@ function stateThrough(P, baseVel, dInc, tc, rng) {
  * @param {{variant:'recon'|'skirmisher'|'picket', seed:number|string, faction?:'TC'|'LC'}} opts
  */
 export function generateScenario({ variant, seed, faction = null }) {
+  resetRosterIds();
   const rng = new RNG(`scenario/${seed}`);
   for (let attempt = 0; attempt < 20; attempt++) {
     const s = tryBuild(variant, seed, rng.stream(`attempt${attempt}`), faction);

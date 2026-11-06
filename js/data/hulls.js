@@ -110,7 +110,7 @@ export const KITS = {
     radiatorAreaAdd: 2 * 2 * 2.0 * 2.7,
     powerAdd: { reactorW: 45e3 },     // compact fission unit for capacitor recharge
     sensorsAdd: [
-      { ...RADAR_BASE, component: 'radar', name: 'PD tracking radar', boresight: [0, 1, 0], fovHalf: 60 * DEG, peakPower: 10e3, apertureArea: 0.6, pulsesPerDwell: 3072 },
+      { ...RADAR_BASE, component: 'radar', name: 'PD fire-control radar', boresight: [0, 1, 0], fovHalf: 60 * DEG, peakPower: 24e3, apertureArea: 0.9, pulsesPerDwell: 4096 }, // dedicated defence radar: finds cold coasting KKVs ~45 km out
     ],
     weaponsAdd: [
       { type: 'pd', component: 'pd_0', name: 'PD-1', mount: 'PD_0', opticalPower: 420e3, wavelength: 1.06e-6, mirror: 0.5,

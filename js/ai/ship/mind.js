@@ -44,14 +44,16 @@ export class ShipMind {
       tr.classifier = new TrackClassifier(this.models, this.prior);
       // launch context: born with an engine/boost flare close to an existing hostile track
       const m = ex.m;
+      tr._birthTruth = m?._truthId ?? null; // evaluation only (debrief) — never read by any agent
       if (m?.features?.flare) {
         const parent = this.tracker.tracks.find((o) => o !== tr && o.status === 'confirmed' && o.classifier && dot(norm(sub(o.pos(), this.ship.pos)), m.u) > Math.cos(0.03));
         if (parent) { tr.launchFrom = parent.id; tr.launchBirth = true; }
       }
     }
     if (type === 'confirmed') {
+      this.ship.world.events.emit(this.ship.world.t, 'track.new', { ship: this.ship.id, track: tr.label, truth: tr._birthTruth, sensor: [...tr.sensors][0] });
       this._emit('newContact', { track: tr, sensor: [...tr.sensors][0] });
-      if (tr.launchBirth) { this.launchesSeen++; this._emit('launch', { track: tr, from: tr.launchFrom }); }
+      if (tr.launchBirth) { this.launchesSeen++; this.lastLaunchT = this.ship.world.t; this._emit('launch', { track: tr, from: tr.launchFrom }); }
     }
     if (type === 'ranged') this._emit('ranged', { track: tr });
     if (type === 'dropped') { this.assess.delete(tr.id); if (tr.label && !tr.mergedInto) this._emit('trackLost', { track: tr }); }
@@ -115,9 +117,18 @@ export class ShipMind {
       const before = tr.classifier.top();
       tr.classifier.update(tr, this.ship, this.ship.world.sunDir, t, { launchBirth: tr.launchBirth });
       const after = tr.classifier.top();
+      // Announce only STABLE beliefs: a new family must hold the top spot for a few seconds (and
+      // a confidence change must persist) — the posterior still updates every time underneath.
       const famBefore = tr._lastFamily, fam = tr.classifier.family()[0];
-      tr._lastFamily = fam;
-      if (!famBefore || famBefore.cls !== fam.cls || Math.abs(famBefore.p - fam.p) > 0.12) this._emit('classification', { track: tr, before: famBefore, after: fam, top: after, previousTop: before });
+      const cand = tr._candFamily;
+      if (!cand || cand.cls !== fam.cls) tr._candFamily = { cls: fam.cls, since: t };
+      const stableFor = t - tr._candFamily.since;
+      const changed = !famBefore || famBefore.cls !== fam.cls;
+      const needed = !famBefore ? 2 : changed ? 8 : 5;
+      if ((changed || Math.abs(famBefore.p - fam.p) > 0.15) && stableFor >= needed) {
+        tr._lastFamily = fam;
+        this._emit('classification', { track: tr, before: famBefore, after: fam, top: after, previousTop: before });
+      }
     }
   }
 

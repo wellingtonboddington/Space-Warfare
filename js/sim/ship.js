@@ -197,3 +197,6 @@ export class Ship {
     world?.events.emit(t, 'ship.destroyed', { ship: this.id, name: this.name, cause, ...info });
   }
 }
+
+/** Per-session id sequences (determinism: the same seed must replay the same world). */
+export function resetShipIds() { SHIP_SEQ = 0; }

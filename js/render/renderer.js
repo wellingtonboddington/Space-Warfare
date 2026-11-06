@@ -175,9 +175,9 @@ export class GameRenderer {
     // view, or only the instrument lights. Shade is genuinely dark; the eye opens up slowly.
     const q = s.playerShip.q, nose = qRotate(q, [0, 1, 0]), up = qRotate(q, [0, 0, 1]);
     const canopy = norm([nose[0] + 0.6 * up[0], nose[1] + 0.6 * up[1], nose[2] + 0.6 * up[2]]);
-    const cabinSun = sunVis * Math.max(0, dot(sunDir, canopy));
+    const cabinSun = v.cabinSun ?? sunVis * Math.max(0, dot(sunDir, canopy));
     const key = v.interior === false ? 0.6 + 0.6 * sunVis : 0.06 + 0.9 * cabinSun + 0.5 * Math.min(1, moonInView) + 0.15 * sunVis;
-    const target = Math.max(0.7, Math.min(3.5, 0.9 / key));
+    const target = Math.max(0.7, Math.min(6, 0.9 / key));
     this.exposure = this.exposure ?? target;
     this.exposure += (target - this.exposure) * Math.min(1, (v.dt ?? 0.016) * (target > this.exposure ? 0.35 : 2.5));
     this.renderer.toneMappingExposure = this.exposure;

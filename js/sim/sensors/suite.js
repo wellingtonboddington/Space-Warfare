@@ -127,7 +127,10 @@ export class SensorSuite {
     let mode = ext.radarMode;
     if (ext.emcon || mode === 'standby' || mode === 'off') return;
     if (t < this.radarNext) return;
-    const dwellMode = mode === 'ping' ? 'track' : mode;
+    // Track-while-scan: in track mode every other dwell is a volume search, so a target the track
+    // doesn't hold (a second KKV hidden in a salvo, a new launch) is still found.
+    let dwellMode = mode === 'ping' ? 'track' : mode;
+    if (mode === 'track') { this._tws = !this._tws; if (this._tws) dwellMode = 'search'; }
     const sen = this._primaryRadar(dwellMode === 'search' ? null : ext.radarDir);
     if (!sen) { if (mode === 'ping') { ext.radarMode = 'standby'; world.events.emit(t, 'radar.noCoverage', { ship: ship.id }); } return; }
     const dir = dwellMode === 'search' ? norm(qRotate(ship.q, sen.spec.boresight)) : (ext.radarDir ?? norm(qRotate(ship.q, sen.spec.boresight)));

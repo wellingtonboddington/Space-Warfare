@@ -51,6 +51,12 @@ export class CockpitView {
     this.arcs = this._arcs();
     // near-infrared illuminators beside each cabin camera: invisible to the pilot, so they are lit
     // only while a camera feed is being rendered (what the AI sees in a dark cabin)
+    // Interreflection: sunlight that gets in through the windows bounces off the panels and the
+    // suit and fills the cabin (no GI here, so one soft point light stands in for that bounce —
+    // scaled by how much sun actually enters; zero in shadow, zero outside the hull).
+    this.bounce = new THREE.PointLight(0xfff1e2, 0, 2.4, 1);
+    this.bounce.position.set(0, -0.05, -0.25);
+    (this.model ?? this.conv).add(this.bounce);
     this.irLights = [];
     for (const id of ['CAM_PILOT', 'CAM_WIDE', 'CAM_LEFT', 'CAM_RIGHT']) {
       const n = this.nodes.get(id);
@@ -175,8 +181,9 @@ export class CockpitView {
   /** Momentary press animation for buttons triggered by anyone. */
   press(controlId) { this.pressed.set(controlId, 0.25); }
 
-  update(t, dt, { reach = null } = {}) {
+  update(t, dt, { reach = null, cabinSun = 0 } = {}) {
     const ship = this.ship, I = ship.interior;
+    this.bounce.intensity += ((ship.sunlit ? 0.55 * cabinSun : 0) - this.bounce.intensity) * Math.min(1, dt * 3);
     // --- controls follow the interior state (smoothly; a lever takes time to throw)
     for (const e of this.controls) {
       const c = e.c;
@@ -216,7 +223,7 @@ export class CockpitView {
     // instrument flood lamps (red night lighting or white)
     for (const m of this.integral) { m.emissive.set(cabin === 2 ? 0xfff0dc : 0xff3018); m.emissiveIntensity = (cabin === 0 ? 0 : cabin === 2 ? 0.5 : 0.18) * (powered ? flick : 0.03); }
     // physically scaled (candela): red night lighting is dim; the eye adapts (see exposure)
-    for (const lamp of this.lamps) { lamp.color.set(cabin === 2 ? 0xfff2e0 : 0xff2a14); lamp.intensity = (cabin === 0 ? 0 : cabin === 2 ? 0.32 : 0.07) * (lamp.isPointLight ? 0.45 : 1) * (powered ? flick : 0.05); }
+    for (const lamp of this.lamps) { lamp.color.set(cabin === 2 ? 0xfff2e0 : 0xff2a14); lamp.intensity = (cabin === 0 ? 0 : cabin === 2 ? 0.32 : 0.11) * (lamp.isPointLight ? 0.45 : 1) * (powered ? flick : 0.05); }
     // --- hull breaches: hissing spray at the real leak sites
     const L = ship.life;
     if (L) for (const b of L.breaches) {

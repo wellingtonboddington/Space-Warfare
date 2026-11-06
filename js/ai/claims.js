@@ -36,16 +36,29 @@ export class ClaimsRegistry {
     for (const fn of this.listeners) fn(claim);
   }
 
+  /**
+   * Void a claim whose premise changed (it was conditional on us coasting, and we burned; on the
+   * KKV staying intact, and point defence killed it). Excluded from calibration — it was not wrong.
+   */
+  void(claim, t, how) {
+    if (claim.status !== 'open') return;
+    claim.status = 'void';
+    claim.tResolved = t;
+    claim.how = how;
+    claim.truth = undefined;
+    claim.voided = true;
+  }
+
   /** Brier score over truth-resolved claims (0 perfect … 1 worst); lower is better calibrated. */
   brier() {
-    const done = this.claims.filter((c) => c.truth !== undefined);
+    const done = this.claims.filter((c) => c.truth !== undefined && !c.voided);
     if (!done.length) return null;
     return done.reduce((a, c) => a + (c.p - (c.truth ? 1 : 0)) ** 2, 0) / done.length;
   }
 
   /** Reliability bins for the calibration display: predicted vs observed frequency. */
   reliability(bins = 5) {
-    const done = this.claims.filter((c) => c.truth !== undefined);
+    const done = this.claims.filter((c) => c.truth !== undefined && !c.voided);
     const out = Array.from({ length: bins }, (_, i) => ({ lo: i / bins, hi: (i + 1) / bins, n: 0, hits: 0, meanP: 0 }));
     for (const c of done) {
       const b = out[Math.min(bins - 1, Math.floor(c.p * bins))];
@@ -55,3 +68,6 @@ export class ClaimsRegistry {
     return out;
   }
 }
+
+/** Per-session id sequences (determinism: the same seed must replay the same world). */
+export function resetClaimIds() { CLAIM_SEQ = 0; }

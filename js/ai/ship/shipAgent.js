@@ -310,12 +310,24 @@ export class ShipAgent {
         data: { mode, dir, track: a.trackId, canSee },
       });
     }
+    // Volume search: no track needed. A picket expecting a raid (or anyone who just saw a launch
+    // flare) wants cold, coasting KKVs found while there is still time to shoot them.
+    const recentLaunch = t - (mind.lastLaunchT ?? -1e9) < 300;
+    const searchNeed = (this.mission.role === 'picket' ? 0.55 : 0.15) + (recentLaunch ? 0.45 : 0) + (list.length === 0 ? 0.1 : 0);
+    options.push({ key: 'search', label: 'radar volume search', considerations: [
+      { name: 'value of information', value: searchNeed, curve: Curves.rising(0.1, 0.8) },
+      { name: 'exposure', value: stealthW * (1 - mind.selfExposure) + (emcon ? 1 : 0), curve: Curves.falling(0.1, 1.0), weight: 0.95 },
+    ], data: { mode: 'search' } });
     const pick = this.r.sensors.choose(options, t);
     this._postureDir = null;
     if (!pick) return;
     const d = pick.data;
     if (d.mode === 'standby') { if (ship.exterior.radarMode !== 'standby') ship.exteriorCommand(this.actor, 'radar', 'standby'); }
-    else {
+    else if (d.mode === 'search') {
+      const auth = this.authorised('active', 'search', t);
+      if (!auth.ok) this.request('active', 'search', 'radar volume search', {}, t, { urgency: 0.3, window: 40 });
+      else if (ship.exterior.radarMode !== 'search') ship.exteriorCommand(this.actor, 'radar', 'search');
+    } else {
       const auth = this.authorised('active', pick.key, t);
       if (!auth.ok) { this.request('active', pick.key, `${d.mode === 'track' ? 'radar track' : 'radar ping'} on ${this.mind.track(d.track)?.label}`, { track: d.track }, t, { urgency: 0.35, window: 30 }); }
       else if (!d.canSee) {
@@ -445,18 +457,35 @@ export class ShipAgent {
   pdUpdate(t) {
     const ship = this.ship, mind = this.mind;
     if (!ship.alive || !ship.pd.length || mind.throttle <= 0) return;
+    if (!this._pdKillSub) {
+      // our own laser's kills are observed (the break-up flash, the track going ballistic/split)
+      this._pdKillSub = ship.world.events.on('kkv.fragmented', (e) => {
+        if (e.by !== ship.id) return;
+        const tur = ship.pd.find((p) => p.target?.trackId && mind.track(p.target.trackId));
+        const trk = tur ? mind.track(tur.target.trackId) : null;
+        if (!trk) return;
+        (this.pdKills ??= []).push({ t: e.t, trackId: trk.id, pos: trk.pos(), vel: trk.vel() });
+        if (this.pdKills.length > 12) this.pdKills.shift();
+      });
+    }
     const threats = [];
     for (const a of mind.assess.values()) {
       if (a.friendly) continue;
       const trk = mind.track(a.trackId);
       if (!trk) continue;
-      const pProj = a.pKKV + (trk.classifier?.posterior['kkv-decoy'] ?? 0) * 0.2;
+      let pProj = a.pKKV + (trk.classifier?.posterior['kkv-decoy'] ?? 0) * 0.2;
+      // the AI saw its own laser break a KKV up: that track, and tracks born from the debris cloud
+      // since, are fragments — still mass on a trajectory, but no seeker and no divert
+      // (only briefly for the killed track itself: a salvo flying close together can share one track,
+      // and if it keeps returning a guided target afterwards there was a second KKV in it)
+      const frag = this.pdKills?.find((k) => (k.trackId === a.trackId && t - k.t < 5) || (k.trackId !== a.trackId && trk.tCreated > k.t - 2 && t - k.t < 90 && len(sub(trk.pos(), add(k.pos, scale(k.vel, t - k.t)))) < 2500 + 150 * (t - k.t)));
+      if (frag) pProj *= 0.2;
       const toUs = a.cpa.d < 3000 ? 1 : 0;
       const toAsset = a.cpaProt.some((c) => c.d < 2500) ? 1 : 0;
       if (pProj < 0.15 || (!toUs && !toAsset)) continue;
       const tImpact = Math.max(1, Math.min(a.cpa.t, ...a.cpaProt.map((c) => c.t)) - t);
       const dir = norm(sub(trk.pos(), ship.pos));
-      threats.push({ a, trk, dir, tImpact, score: (a.pKKV + 0.1) * (toUs ? 1.2 : 1) / tImpact });
+      threats.push({ a, trk, dir, tImpact, score: (pProj + 0.1) * (toUs ? 1.2 : 1) / tImpact * (frag ? 0.15 : 1) });
     }
     threats.sort((x, y) => y.score - x.score);
     const assigned = new Set();
@@ -472,7 +501,8 @@ export class ShipAgent {
         const spot = 1.22 * spec.wavelength * R / spec.mirror + 1.2e-6 * R;
         const frac = Math.min(1, 0.1 / (Math.PI * spot * spot));
         const tKill = 2.5e5 / Math.max(1, spec.opticalPower * frac * 0.35);
-        return tKill < th.tImpact * 0.8 && R < spec.mirror * 280e3;
+        // and the track must be good enough to put the beam director's 15 mrad acquisition field on it
+        return tKill < th.tImpact * 0.8 && R < spec.mirror * 280e3 && th.trk.angularSigma(ship.pos) < 5e-3;
       });
       if (!best) { if (tur.target) ship.exteriorCommand(this.actor, 'pd', tur.index, null); continue; }
       const auth = this.authorised('pd', 'pd', t);
@@ -543,3 +573,6 @@ function stripRefs(d) {
   }
   return out;
 }
+
+/** Per-session id sequences (determinism: the same seed must replay the same world). */
+export function resetRequestIds() { REQ_SEQ = 0; }

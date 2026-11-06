@@ -184,3 +184,6 @@ export class Debris {
   emissionSnapshot() { return { thrust: 0, Tbell: 0, Trad: 0, radDeploy: 0, TskinSun: this.temp + 40, TskinDark: this.temp - 40, venting: 0, pdFiring: false, q: this.q, sunlit: this.sunlit ?? true, alive: true }; }
   stepSystems(dt) { this.temp += (230 - this.temp) * Math.min(1, dt / 400); }
 }
+
+/** Per-session id sequences (determinism: the same seed must replay the same world). */
+export function resetProjectileIds() { KKV_SEQ = 0; DEBRIS_SEQ = 0; }

@@ -197,6 +197,8 @@ export function extractFeatures(track, owner, sunDir, t, window = 40) {
   return F;
 }
 
+const TEMPER = { irMW: 0.55, irLW: 0.45, color: 0.45, size: 0.5, albedoArea: 0.6, rcs: 0.7, rcsCV: 0.5, lcVar: 0.6, flare: 0.6, emitter: 0.9 };
+
 export class TrackClassifier {
   constructor(models, prior = DEFAULT_PRIOR) {
     this.models = models;
@@ -219,7 +221,10 @@ export class TrackClassifier {
       const M = this.models[c];
       let lp = Math.log(prior[c] ?? 1e-3);
       contrib[c] = {};
-      const add = (name, ll) => { lp += ll; contrib[c][name] = ll; };
+      // Features are not independent looks (the IR bands, colour and size all derive from the
+      // same temperature × area; RCS and its fluctuation from the same return), so their
+      // log-likelihoods are tempered — otherwise every new feature makes the AI overconfident.
+      const add = (name, ll) => { const w = TEMPER[name] ?? 0.7; lp += w * ll; contrib[c][name] = w * ll; };
       for (const key of ['irMW', 'irLW', 'color', 'rcs', 'rcsCV', 'albedoArea', 'lcVar', 'size']) {
         if (!F[key] || !M[key]) continue;
         const s = Math.hypot(M[key].sigma, F[key].s);

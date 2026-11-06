@@ -80,7 +80,7 @@ export class Game {
     const s = this.session, e = s.playerEntity;
     if (sp === 'ai') return s.roster.get(e.crew.aiId)?.designation ?? 'AI';
     const p = s.roster.get(e.crew.pilotId);
-    return p ? (p.callsign ?? p.name?.last ?? 'PILOT').toUpperCase() : 'PILOT';
+    return p ? (p.nickname ?? p.surname ?? 'PILOT').toUpperCase() : 'PILOT';
   }
 
   _addFeeds() {
@@ -134,9 +134,34 @@ export class Game {
       visorClosed: !!ship.pilotVisorClosed,
       speaking: speakingPilot ? 1 : 0,
     });
-    this.cockpit.update(t, dt, {});
+    this._sunProbe();
+    this.cockpit.update(t, dt, { cabinSun: this.cabinSun ?? 0 });
     this.screens.update(t, dt);
     for (const id of this.screens.wantedFeeds()) this.feeds.want(id);
+  }
+
+  /**
+   * Is the Sun actually shining into the cabin? A few rays from around the eye toward the Sun
+   * against the cockpit shell (glass excluded) — drives eye adaptation and nothing else.
+   */
+  _sunProbe() {
+    const now = performance.now();
+    if (now < (this._sunProbeT ?? 0)) return;
+    this._sunProbeT = now + 400;
+    const ship = this.ship, sd = this.session.world.sunDir;
+    if (!ship.sunlit || !this.cockpit.model) { this.cabinSun = 0; return; }
+    this._occluders ??= (() => { const out = []; this.cockpit.model.traverse((o) => { if (o.isMesh && !/GLASS|VISOR|SCREEN|LIGHT|LABELS/.test(o.material?.name ?? '') && !o.isSkinnedMesh) out.push(o); }); return out; })();
+    const eye = this.cockpit.model.getWorldPosition(new THREE.Vector3());
+    const dir = new THREE.Vector3(sd[0], sd[1], sd[2]).normalize();
+    const ray = (this._ray ??= new THREE.Raycaster());
+    ray.far = 3;
+    let lit = 0;
+    const offs = [[0, 0, 0], [0.25, 0, 0], [-0.25, 0, 0], [0, -0.3, -0.2], [0, 0.1, -0.35]];
+    for (const o of offs) {
+      ray.set(eye.clone().add(new THREE.Vector3(...o).applyQuaternion(this.cockpit.model.getWorldQuaternion(new THREE.Quaternion()))), dir);
+      if (!ray.intersectObjects(this._occluders, false).length) lit++;
+    }
+    this.cabinSun = lit / offs.length;
   }
 
   _leakPos(site) { return layout.leakSites.find((l) => l.id === site)?.pos ?? null; }
