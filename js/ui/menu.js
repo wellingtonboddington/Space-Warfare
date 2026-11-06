@@ -1,5 +1,6 @@
 // Title, mode select, encounter setup, briefing. Pure DOM.
-import { esc } from './hud.js';
+import { esc, showManual } from './hud.js';
+import { MANUAL } from './help.js';
 
 const CSS = `
 #menu{position:fixed;inset:0;z-index:20;overflow:auto;background:radial-gradient(ellipse at 70% 120%,#20231f 0%,#070807 55%,#000 100%);color:#d8e0d6;font-family:"Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;display:flex;align-items:center;justify-content:center;padding:24px 16px;box-sizing:border-box}
@@ -62,6 +63,7 @@ export class Menu {
             <label>QUALITY<select data-k="quality"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option></select></label>
             <label>VOICE<select data-k="voice"><option value="on">SPEECH + SUBTITLES</option><option value="off">SUBTITLES ONLY</option></select></label>
             <button class="go">BRIEFING ▸</button>
+            <button class="go" data-howto style="background:#101611;color:#bcd0b6;border-color:#2c3a30">HOW TO PLAY</button>
           </div>
           <div class="note">Every encounter is generated from the seed: orbits, sun and relay geometry, enemy order of battle and crews, faults, crew stress and trust. Nothing is scripted; the same seed replays the same world, but not the same decisions.<br>
           Pilot seat: point at a control and click it · click empty space for free look (Esc releases) · right-drag looks too · RMB: rotary back / CHECK THIS on a raw feed · SPACE lean · V visor · TAB talk · [ ] time · P pause · F1 AI debug.</div>
@@ -69,7 +71,8 @@ export class Menu {
         for (const c of this.el.querySelectorAll('[data-mode]')) c.onclick = () => { s.mode = c.dataset.mode; render(); };
         for (const c of this.el.querySelectorAll('[data-variant]')) c.onclick = () => { s.variant = c.dataset.variant; render(); };
         for (const i of this.el.querySelectorAll('[data-k]')) { i.value = s[i.dataset.k] ?? i.value; i.onchange = () => { s[i.dataset.k] = i.value; }; }
-        this.el.querySelector('.go').onclick = () => {
+        this.el.querySelector('[data-howto]').onclick = () => showManual(this.root, MANUAL, 0);
+        this.el.querySelector('.go:not([data-howto])').onclick = () => {
           const seed = String(s.seed ?? '').trim() ? (Number.isFinite(+s.seed) ? +s.seed : hash(s.seed)) : Math.floor(Math.random() * 1e6);
           savePrefs(s);
           resolve({ mode: s.mode, variant: s.variant, faction: s.faction || null, seed, quality: s.quality, voice: s.voice !== 'off' });

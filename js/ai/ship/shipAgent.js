@@ -15,7 +15,7 @@
 
 import { sub, add, scale, len, norm, dot, qRotate } from '../../core/vec.js';
 import { Reasoner, Curves } from '../utility/reasoner.js';
-import { generateCandidates } from './planner.js';
+import { generateCandidates, prosecuting } from './planner.js';
 import { kkvIntercept } from './fireControl.js';
 import { launchKKV } from '../../sim/weapons/launcher.js';
 import { moonOccludes, C_LIGHT } from '../../sim/orbital.js';
@@ -174,13 +174,17 @@ export class ShipAgent {
     const tol = ship.crewGTolerance ?? 3.0;
     const stealthW = this.mission.stealth ?? 0;
     const burning = ship.autopilot.burn && ['slew', 'burn'].includes(ship.autopilot.burn.phase);
+    // Mission risk acceptance: a patrol or escort that has found its enemy weighs survival and fuel
+    // less steeply than one still looking or waiting (otherwise it never closes to an effective shot).
+    const fighting = prosecuting({ mission: this.mission, targetTrack, ship }); // strike/raid roles already have their own objective pull
+    const riskExp = 1 + 4 * tr.caution * (fighting ? 0.45 : 1);
     const options = evals.map(({ c, m }) => {
       const ordered = this.orders.maneuver && c.key === ctx.orderedCandidate?.key;
       const forbidden = this.orders.maneuver?.kind === 'hold' && c.dv;
       const cons = [
-        { name: 'survival', value: m.pSurvive, curve: Curves.power(1 + 4 * tr.caution), note: `P(survive)=${m.pSurvive.toFixed(2)}` },
-        { name: 'objective', value: m.obj.value, curve: Curves.floor(Curves.linear(), 0.08), weight: 0.85 },
-        { name: 'fuel', value: m.dvFrac, curve: Curves.falling(0.02, 0.5 + 0.3 * (1 - tr.caution)), weight: 0.7 },
+        { name: 'survival', value: m.pSurvive, curve: Curves.power(riskExp), note: `P(survive)=${m.pSurvive.toFixed(2)}` },
+        { name: 'objective', value: m.obj.value, curve: Curves.floor(Curves.linear(), 0.08), weight: fighting ? 1 : 0.85 },
+        { name: 'fuel', value: m.dvFrac, curve: fighting ? Curves.falling(0.05, 0.9) : Curves.falling(0.02, 0.5 + 0.3 * (1 - tr.caution)), weight: 0.7 },
         { name: 'mission Δv budget', value: (ship.deltaVRemaining() - (c.dv ? len(c.dv) : 0) - (this.mission.reserveDv ?? 250)) / Math.max(1, (this._dv0 ??= ship.deltaVRemaining()) - (this.mission.reserveDv ?? 250)), curve: Curves.rising(0.15, 0.55), weight: c.kind === 'evade' ? 0.2 : 0.75 },
         { name: 'reserve after burn', value: ship.deltaVRemaining() - (c.dv ? len(c.dv) : 0), curve: Curves.rising((this.mission.reserveDv ?? 250) * 0.7, (this.mission.reserveDv ?? 250) * 1.5), weight: c.kind === 'evade' ? 0.3 : 0.9 },
         { name: 'pilot g-load', value: m.gLoad / tol, curve: Curves.falling(0.5, 1.15), weight: 0.4 + 0.5 * tr.warmth },
@@ -270,6 +274,7 @@ export class ShipAgent {
       if (c.length) return c.sort((a, b) => b.pFamily - a.pFamily)[0];
     }
     if (m.role === 'hunt' || m.role === 'patrol') return list.find((a) => a.pHostile > 0.4) ?? null;
+    if (m.role === 'escort') return list.find((a) => a.pHostile > 0.5 && (a.range < 160e3 || a.cpaProt?.some((c) => c.id === m.protectId && c.d < 60e3))) ?? null;
     return list[0] ?? null;
   }
 

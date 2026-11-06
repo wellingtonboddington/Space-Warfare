@@ -7,6 +7,8 @@ import * as THREE from 'three';
 import { CONTROL_BY_ID } from '../sim/interior.js';
 import { diagnose } from '../sim/interiorAdvisor.js';
 import { checkThis } from '../comms/playerIntents.js';
+import { CONTROL_HELP, PAGE_HELP } from '../ui/help.js';
+import { esc } from '../ui/hud.js';
 
 const REACH_M = 1.05;     // eye → control distance the harnessed pilot can reach
 const _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ'), _v = new THREE.Vector3();
@@ -15,8 +17,9 @@ export class HumanControl {
   constructor(game, canvas, ui) {
     this.g = game; this.canvas = canvas; this.ui = ui;
     this.yaw = 0; this.pitch = -0.12; this.lean = 0; this.leanWant = 0;
-    this.fov = 72;
-    this.zoom = false;
+    this.fov = 72; this.fovTarget = 72;   // vertical degrees; the wheel zooms down to 4° (read a gauge from the seat)
+    this.focus = null;                   // F: {yaw, pitch, fov} to fly to, with the view to restore
+    this.tip = { key: null, since: 0 };
     this.ray = new THREE.Raycaster();
     this.ray.far = 3;
     this.hover = null;
@@ -44,12 +47,15 @@ export class HumanControl {
     });
     on(document, 'mouseup', () => { this.drag = null; });
     on(canvas, 'contextmenu', (e) => e.preventDefault());
-    on(canvas, 'wheel', (e) => { this.fov = Math.max(28, Math.min(85, this.fov + Math.sign(e.deltaY) * 4)); }, { passive: true });
+    on(canvas, 'wheel', (e) => { e.preventDefault(); this.zoomBy(e.deltaY > 0 ? 1.18 : 1 / 1.18); }, { passive: false });
     on(document, 'keydown', (e) => {
       if (ui.modalOpen() && e.code !== 'Escape') return;
       if (e.code === 'Space' || e.code === 'ShiftLeft') { this.leanWant = 1; e.preventDefault(); }
       if (e.code === 'KeyV') this.visor();
-      if (e.code === 'KeyZ') this.zoom = !this.zoom;
+      if (e.code === 'KeyZ') this.fovTarget = this.fovTarget > 30 ? 18 : 72;
+      if (e.code === 'KeyF') this.toggleFocus();
+      if (e.code === 'Equal' || e.code === 'NumpadAdd') this.zoomBy(1 / 1.3);
+      if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.zoomBy(1.3);
     });
     on(document, 'keyup', (e) => { if (e.code === 'Space' || e.code === 'ShiftLeft') this.leanWant = 0; });
   }
@@ -70,16 +76,59 @@ export class HumanControl {
 
   dispose() { for (const h of this.handlers) h(); if (document.pointerLockElement === this.canvas) document.exitPointerLock?.(); }
 
+  /**
+   * Zoom by a factor; with a free cursor the view also swings toward what is under it, so wheeling
+   * in on a gauge brings that gauge to the centre (like leaning in and looking at it).
+   */
+  zoomBy(f) {
+    const old = this.fovTarget;
+    this.fovTarget = Math.max(4, Math.min(85, this.fovTarget * f));
+    this.focus = null;
+    if (!this.locked && this.mouse && this.fovTarget < old) {
+      const nx = (this.mouse.x / innerWidth) * 2 - 1, ny = -(this.mouse.y / innerHeight) * 2 + 1;
+      const tv = Math.tan((this.fov * Math.PI / 180) / 2), aspect = innerWidth / innerHeight;
+      const ax = Math.atan(nx * tv * aspect), ay = Math.atan(ny * tv);
+      const k = 1 - this.fovTarget / old;
+      this.yaw = Math.max(-2.5, Math.min(2.5, this.yaw - ax * k));
+      this.pitch = Math.max(-1.4, Math.min(1.45, this.pitch + ay * k));
+    }
+  }
+
+  /** F: fly the view to frame the screen/control under the cursor (or reticle); F again returns. */
+  toggleFocus() {
+    if (this.focus) { const back = this.focus.back; this.focus = { yaw: back.yaw, pitch: back.pitch, fov: back.fov, returning: true }; return; }
+    this._pickNow();
+    const h = this.hover;
+    if (!h) { this.ui.toast?.('Point at a screen or control, then press F'); return; }
+    const cp = this.g.cockpit;
+    const target = h.screenId ? cp.nodes.get(`SCREEN_${h.screenId}`)?.getWorldPosition(new THREE.Vector3()) : cp.controlWorldPos(h.controlId);
+    if (!target) return;
+    const model = cp.model ?? cp.conv;
+    const local = model.worldToLocal(target.clone()).sub(model.worldToLocal(this.camPos.clone())).normalize();
+    const yaw = Math.atan2(-local.x, -local.z), pitch = Math.asin(Math.max(-1, Math.min(1, local.y)));
+    const dist = target.distanceTo(this.camPos);
+    const size = h.screenId === 'COMM' ? 0.08 : h.screenId ? 0.15 : 0.12; // metres to fit in view
+    const fov = Math.max(4, Math.min(60, 2 * Math.atan(size / dist) * 180 / Math.PI));
+    this.focus = { yaw, pitch, fov, back: { yaw: this.yaw, pitch: this.pitch, fov: this.fovTarget } };
+  }
+
   _look(dx, dy) {
+    if (this.focus && !this.focus.returning) this.focus = null; // looking away ends the focus
     const k = 0.0022 * (this.fov / 72);
     this.yaw = Math.max(-2.5, Math.min(2.5, this.yaw - dx * k));
-    this.pitch = Math.max(-1.25, Math.min(1.05, this.pitch - dy * k));
+    this.pitch = Math.max(-1.4, Math.min(1.45, this.pitch - dy * k)); // tilt far enough to reach the overhead panel
   }
 
   /** Per-frame: camera pose (eye + head spring + lean), hover picking. */
   update(dt) {
     const g = this.g, cp = g.cockpit;
     this.lean += (this.leanWant - this.lean) * Math.min(1, dt * 6);
+    if (this.focus) {
+      const f = this.focus, k = Math.min(1, dt * 6);
+      this.yaw += (f.yaw - this.yaw) * k; this.pitch += (f.pitch - this.pitch) * k; this.fovTarget += (f.fov - this.fovTarget) * k;
+      if (f.returning && Math.abs(f.yaw - this.yaw) < 0.002 && Math.abs(f.fov - this.fovTarget) < 0.1) this.focus = null;
+    }
+    this.fov += (this.fovTarget - this.fov) * Math.min(1, dt * 10);
     const model = cp.model ?? cp.conv;
     model.updateWorldMatrix(true, false);
     const mq = model.getWorldQuaternion(new THREE.Quaternion());
@@ -89,16 +138,21 @@ export class HumanControl {
     // eye: design eye point; the head spring (g-sag, jolts) moves it; lean moves toward the panel
     const ho = g.rig.ok ? g.rig.headOffset() : _v.set(0, 0, 0);
     const lean = new THREE.Vector3(0, -0.06, -0.2).multiplyScalar(this.lean);
-    const local = new THREE.Vector3().copy(ho).multiplyScalar(0.8).add(lean);
+    // the head turns about the neck, not the eye: looking aside moves the eye forward and out,
+    // away from your own shoulder (cockpit model frame: +Y up, −Z forward)
+    const neck = new THREE.Vector3(0, -0.08, 0.09);
+    const eyeFromNeck = new THREE.Vector3(0, 0.08, -0.09).applyQuaternion(_q);
+    const local = new THREE.Vector3().copy(ho).multiplyScalar(0.8).add(lean).add(neck).add(eyeFromNeck);
     // unconscious: the view sags and dims (handled by UI); physical jitter from engine vibration
     const ship = g.ship;
     const thrust = ship.engine?.thrustFrac ?? 0;
     if (thrust > 0) local.add(new THREE.Vector3((Math.random() - 0.5) * 0.002 * thrust, (Math.random() - 0.5) * 0.002 * thrust, 0));
     this.camPos.copy(model.localToWorld(local));
+    g.rig.setEye?.(this.camPos);
     g.rig.look = { yaw: this.yaw, pitch: this.pitch, lean: this.lean };
     // picking: centre of view when locked, mouse position otherwise
     const cam = g.gr.nearCam;
-    cam.position.copy(this.camPos); cam.quaternion.copy(this.camQuat); cam.fov = this.zoom ? this.fov * 0.45 : this.fov; cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+    cam.position.copy(this.camPos); cam.quaternion.copy(this.camQuat); cam.fov = this.fov; cam.updateMatrixWorld(); cam.updateProjectionMatrix();
     const ndc = this.locked || !this.mouse ? new THREE.Vector2(0, 0) : new THREE.Vector2((this.mouse.x / innerWidth) * 2 - 1, -(this.mouse.y / innerHeight) * 2 + 1);
     this.ray.setFromCamera(ndc, cam);
     const hit = cp.pick(this.ray);
@@ -107,6 +161,22 @@ export class HumanControl {
     cp.setHover(h?.controlId ? h : null);
     this.hover = h;
     this.ui.setHover?.(h ? this._hoverText(h) : null, this.locked ? null : this.mouse ?? null);
+    // dwell on something for a moment → explain what it does
+    const key = h ? (h.controlId ?? `${h.screenId}:${g.screens.pageName(h.screenId) ?? ''}`) : null;
+    const now = performance.now();
+    if (key !== this.tip.key) { this.tip = { key, since: now }; this.ui.setTip?.(null); }
+    else if (key && now - this.tip.since > 550 && !this.tip.shown) { this.tip.shown = true; this.ui.setTip?.(this._tipHtml(h), this.locked ? null : this.mouse); }
+  }
+
+  _tipHtml(h) {
+    if (h.screenId) {
+      const page = this.g.screens.pageName(h.screenId) ?? '';
+      const txt = PAGE_HELP[`${h.screenId}:${page}`] ?? PAGE_HELP[`${h.screenId}:`] ?? '';
+      return `<b>${esc(h.screenId.replace('MFD_', 'MFD ').replace('AI', 'AI screen'))}${page ? ` · ${esc(page)}` : ''}</b><br>${esc(txt)}<br><i>Bezel buttons below the screen change page · F: focus · wheel: zoom</i>`;
+    }
+    const hp = CONTROL_HELP[h.controlId];
+    if (!hp) return `<b>${esc(h.controlId)}</b>`;
+    return `<b>${esc(hp.name)}</b> <span style="opacity:.7">${esc(this._hoverText(h).replace(/^[^[]*/, ''))}</span><br>${esc(hp.does)}${hp.when ? `<br><i>${esc(hp.when)}</i>` : ''}`;
   }
 
   _hoverText(h) {
@@ -188,6 +258,11 @@ export class HumanControl {
 
   visor() {
     const g = this.g, ship = g.ship, pilot = g.session.playerPilot;
-    pilot?.motor?.enqueue([{ controlId: 'VISOR', action: () => { ship.pilotVisorClosed = !ship.pilotVisorClosed; return true; }, hold: 0.5 }], () => {});
+    pilot?.motor?.enqueue([{ controlId: 'VISOR', action: () => {
+      ship.pilotVisorClosed = !ship.pilotVisorClosed;
+      const suit = ship.interior.get('life.suitO2') === 1;
+      this.ui.toast?.(ship.pilotVisorClosed ? (suit ? 'Visor down · sealed on suit O₂' : 'Visor down — NOT sealed: set SUIT O₂ (overhead) to breathe from the suit') : 'Visor up · breathing cabin air', 3200);
+      return true;
+    }, hold: 0.5 }], () => {});
   }
 }

@@ -35,6 +35,9 @@ export class CommsEngine {
     this.told = new Map();
     this.quietUntil = -1;
     this.reminded = new Set();
+    this.subjectT = new Map();
+    this.nextRoutineT = -1;
+    this.compression = 1;
     const e = session.playerEntity;
     this.pilotPerson = session.roster.get(e.crew.pilotId);
     this.aiRec = session.roster.get(e.crew.aiId);
@@ -61,6 +64,16 @@ export class CommsEngine {
   enqueue(speaker, intent, slots, { priority = 0.5, ttl = 10, key = null, claim = null, meta = null, player = false } = {}) {
     // AI-POV: the player is the AI's only voice
     if (speaker === 'ai' && !this.aiAgentSpeaks && !player) return null;
+    // Speech budget: routine traffic is shed when time is compressed, and no subject (a track, a
+    // system) gets a routine line more than once every ~25 s — a good operator doesn't narrate.
+    const comp = this.compression ?? 1;
+    if (!player && priority < 0.6 && comp >= 8) return null;
+    if (!player && priority < 0.7 && key) {
+      const subj = key.replace(/^(cls|contact):/, '');
+      const last = this.subjectT.get(subj) ?? -1e9;
+      if (this.t - last < 25 * Math.max(1, comp / 2)) return null;
+      this.subjectT.set(subj, this.t);
+    }
     if (speaker === 'ai' && this.t < this.quietUntil && priority < 0.75) return null;
     if (key) this.queue = this.queue.filter((q) => q.key !== key);
     const item = { speaker, intent, slots, priority, tCreated: this.t, ttl, key, claim, meta };
@@ -98,6 +111,8 @@ export class CommsEngine {
     if (this.speaking || !this.queue.length) return;
     // pick: priority with freshness decay; the pilot's own words slightly preferred (turn-taking)
     this.queue.sort((a, b) => score(b, t) - score(a, t));
+    // routine lines wait for a breath of silence after the last line (real seconds, not sim)
+    if (this.queue[0].priority < 0.6 && t < this.nextRoutineT) return;
     const item = this.queue.shift();
     const st = this.styleFor(item.speaker, item.speaker === 'ai' ? Math.max(0, item.priority - 0.35) / 0.65 : 0);
     if (item.speaker === 'pilot' && item.meta?.refusing) st.tones.add('defiant');
@@ -106,7 +121,10 @@ export class CommsEngine {
     const words = r.text.split(/\s+/).length;
     const rate = item.speaker === 'pilot' ? WPS.pilot * (1 + 0.35 * (this.pilot?.phys?.arousal ?? 0)) : WPS.ai;
     const u = { id: `U${++UTT}`, speaker: item.speaker, intent: item.intent, text: r.text, t, duration: 0.6 + words / rate, priority: item.priority, stress: item.speaker === 'pilot' ? this.pilot?.phys?.arousal ?? 0 : 0, slots: item.slots };
-    this.speaking = { u, tEnd: t + u.duration + 0.35, priority: item.priority };
+    // speech happens in real time: under time compression a line occupies proportionally more sim time
+    const comp = Math.max(1, this.compression ?? 1);
+    this.speaking = { u, tEnd: t + (u.duration + 0.35) * comp, priority: item.priority };
+    this.nextRoutineT = this.speaking.tEnd + 3.5 * comp;
     this.log.push(u);
     if (this.log.length > 400) this.log.shift();
     if (item.claim) this._registerClaim(item.claim, u);
@@ -194,7 +212,7 @@ export class CommsEngine {
       this.told.set(tr.id, { family: fam.cls, p: fam.p, t: this.t });
       return this.enqueue('ai', 'Correction', { track: tr.label, oldFamily: told.family, newFamily: fam.cls, p: fam.p, oldP: told.p }, { priority: 0.78, key: `cls:${tr.id}`, ttl: 10, claim });
     }
-    if (told.family === fam.cls && Math.abs(fam.p - told.p) >= 0.15 && this.aiTraits.verbosity > 0.25) {
+    if (told.family === fam.cls && Math.abs(fam.p - told.p) >= 0.22 && this.aiTraits.verbosity > 0.45) {
       const ex = tr.classifier.explain();
       const reason = FEATURE[ex.items.find((i) => i.llr > 0)?.feature] ?? 'the accumulated looks';
       this.told.set(tr.id, { family: fam.cls, p: fam.p, t: this.t });

@@ -108,3 +108,30 @@ export function sensorPose(shipVisual, dirMCI, fovFullDeg, upMCI = [0, 0, 1]) {
   pos.addScaledVector(fwd, 7.5);
   return { pos, quat, fov: fovFullDeg };
 }
+
+/**
+ * Material that shows a feed render target on a quad in screen space: exposure, a soft highlight
+ * roll-off (sunlit hull in an HDR feed must not clip to white), optional monochrome low-light look
+ * with sensor noise. Used by the AI-POV composite and the pilot's camera wall.
+ */
+export function feedTileMaterial(tex, { mono = false, gain = 1, noise = 0.02, exposure = 1 } = {}) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uTex: { value: tex }, uMono: { value: mono ? 1 : 0 }, uGain: { value: gain }, uNoise: { value: noise }, uTime: { value: 0 }, uExposure: { value: exposure } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+    fragmentShader: `uniform sampler2D uTex; uniform float uMono; uniform float uGain; uniform float uNoise; uniform float uTime; uniform float uExposure; varying vec2 vUv;
+      float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+      void main(){
+        vec3 c = texture2D(uTex, vUv).rgb * uGain * uExposure;
+        c = c / (1.0 + c);                                   // highlight roll-off (camera-like)
+        c = pow(c, vec3(0.9));
+        if (uMono > 0.5) { float l = dot(c, vec3(0.3,0.59,0.11)); c = vec3(l*0.85, l, l*0.95); }
+        c += (h(vUv * 512.0 + uTime) - 0.5) * uNoise;
+        gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+        #include <colorspace_fragment>
+      }`,
+    depthTest: false, depthWrite: false, toneMapped: false,
+  });
+}
+
+/** Exposure a hull camera would pick: the sunlit hull is bright, the night side is dark. */
+export const feedExposure = (ship) => (ship.sunlit ? 0.9 : 14.0); // night side: long exposure on earthshine

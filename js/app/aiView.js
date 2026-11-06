@@ -16,6 +16,7 @@ import { aiOptions, applyAIOption } from '../comms/playerIntents.js';
 import { lvlh, R_MOON } from '../sim/orbital.js';
 import { sub, dot, len, norm, qRotate } from '../core/vec.js';
 import { esc } from '../ui/hud.js';
+import { CONSOLE_HELP } from '../ui/help.js';
 
 const AMBER = '#ffb02e', CYAN = '#7fd6e8', DIM = '#5d6a66', WARN = '#ff4a36', OK = '#7fe08a', TXT = '#cfd9d4';
 
@@ -55,16 +56,22 @@ export class AIView {
       e.preventDefault();
       const ag = this.agent, t = this.s.t;
       if (el.dataset.c) this.execManeuver(this.cands.find((x) => x.key === el.dataset.c));
-      else if (el.dataset.f) { const o = ag.fireOptions(t).find((x) => x.key === el.dataset.f); if (o) { ag.executeFire(o, t); this.hud.toast(ag.authorised('kkv', o.key, t).ok ? `FIRING: ${o.label}` : `REQUESTED: ${o.label}`); } else this.hud.toast('That firing solution has gone'); }
+      else if (el.dataset.f) { const o = ag.fireOptions(t).find((x) => x.key === el.dataset.f); if (o) this.startFire(o, t); else this.hud.toast('That firing solution has gone'); }
       else if (el.dataset.a) this.action(el.dataset.a);
       this.consoleT = 0; // show the result right away
     });
     this.con.addEventListener('mouseover', (e) => { const el = e.target.closest('[data-c]'); this.preview = el ? this.cands.find((x) => x.key === el.dataset.c) ?? null : null; });
-    this.con.addEventListener('mouseleave', () => { this.preview = null; });
+    this.con.addEventListener('mouseleave', () => { this.preview = null; this.hud.setTip(null); clearTimeout(this._tipT); });
+    this.con.addEventListener('mousemove', (e) => {
+      const el = e.target.closest('[data-tip]');
+      const key = el?.dataset.tip ?? null;
+      if (key !== this._tipKey) { this._tipKey = key; this.hud.setTip(null); clearTimeout(this._tipT); if (key && CONSOLE_HELP[key]) { const pos = { x: Math.max(240, e.clientX - 260), y: e.clientY - 30 }; this._tipT = setTimeout(() => this.hud.setTip(esc(CONSOLE_HELP[key]), pos), 500); } }
+    });
     root.appendChild(this.el);
     this.og = this.ov.getContext('2d');
     this.hud.showReticle(false);
     this.hud.setLayout('ai');
+    game.aiView = this;
     this.hud.setHelp('');
     this._tactical();
     this._compositor();
@@ -81,6 +88,7 @@ export class AIView {
       if (this.auto.thermal) this.agent._thermal(t);
       this.agent.pdAuto = this.auto.pd;
       for (const r of this.ship.requests) if (r.status === 'pending' && t > r.windowEnd) { r.status = 'expired'; r.tResolved = t; }
+      this._tickFire(t);
     }, 0.025);
     this.consoleT = 0;
   }
@@ -257,22 +265,23 @@ export class AIView {
     let h = `<h4><span>MANOEUVRE · generateCandidates()</span><span>${this.cands.length}</span></h4>`;
     const best = this.cands[0]?.key;
     for (const c of this.cands.slice(0, 8)) {
-      h += `<div class="it ${c.key === best ? 'best' : ''} ${c.dv && gate('maneuver') ? 'gated' : ''}" data-c="${esc(c.key)}"><span class="l">${esc(c.label)}</span><span>${c.deltaV ? `${c.deltaV.toFixed(0)} m/s` : 'coast'}</span>
+      h += `<div class="it ${c.key === best ? 'best' : ''} ${c.dv && gate('maneuver') ? 'gated' : ''}" data-c="${esc(c.key)}" data-tip="${c.dv ? 'maneuver' : 'coast'}"><span class="l">${esc(c.label)}</span><span>${c.deltaV ? `${c.deltaV.toFixed(0)} m/s` : 'coast'}</span>
         <span class="m">P(surv) ${pct(c.pSurvive)} · obj ${c.objective.toFixed(2)}${c.pKillEst != null ? ` · Pk ${pct(c.pKillEst)}` : ''}${c.cpaTarget != null ? ` · CPA ${(c.cpaTarget / 1000).toFixed(1)} km` : ''} · exec ${c.timeToExecute.toFixed(0)} s · ${c.gLoad.toFixed(1)} g · exposure ${c.sensorExposure.toFixed(0)}</span></div>`;
     }
     const fo = ship.kkvRemaining > 0 ? ag.fireOptions(t).filter((o) => o.data) : [];
     if (ship.spec.weapons?.some((w) => w.type === 'kkv')) {
-      h += `<h4><span>WEAPONS · ${ship.kkvRemaining} KKV · CONSENT ${I.get('weaponsConsent') ? 'ON' : 'SAFE'}</span><span>${gate('kkv') ? 'NEEDS CONFIRM' : 'DIAL CLEARS'}</span></h4>`;
-      for (const o of fo.slice(0, 5)) h += `<div class="it ${gate('kkv') ? 'gated' : ''}" data-f="${esc(o.key)}"><span class="l">${esc(o.label)}</span><span>Pk ${pct(o.data.pk)}</span><span class="m">${o.data.a.family} ${pct(o.data.a.pFamily)} · tGo ${o.data.sol.tGo.toFixed(0)} s</span></div>`;
-      if (!fo.length) h += '<div class="pil" style="color:#5d6a66">no firing solution</div>';
+      h += `<h4><span>WEAPONS · ${ship.kkvRemaining} KKV</span><span>AUTHORITY ${gate('kkv') ? '<b style="color:#ffb02e">PILOT MUST CONFIRM</b>' : '<b style="color:#7fe08a">DIAL ALLOWS</b>'} · CONSENT ${I.get('weaponsConsent') ? '<b style="color:#7fe08a">ARMED</b>' : '<b style="color:#ffb02e">SAFE</b>'}</span></h4>`;
+      if (this.fireIntent) h += `<div class="pil" style="color:${CYAN}">▸ ${esc(this.fireIntent.status ?? '')}</div>`;
+      for (const o of fo.slice(0, 5)) h += `<div class="it ${gate('kkv') ? 'gated' : ''}" data-f="${esc(o.key)}" data-tip="fire"><span class="l">FIRE: ${esc(o.label)}</span><span>Pk ${pct(o.data.pk)}</span><span class="m">${o.data.a.family} ${pct(o.data.a.pFamily)} · KKV flight ${o.data.sol.tGo.toFixed(0)} s</span></div>`;
+      if (!fo.length) h += '<div class="pil" style="color:#5d6a66">no firing solution — get within launch range (a "close" burn)</div>';
     }
     h += `<h4><span>SENSORS · RADAR ${ship.exterior.radarMode.toUpperCase()}${ship.exterior.emcon ? ' · EMCON' : ''}</span><span>exposure ${pct(this.mind.selfExposure)}</span></h4><div class="row">`;
-    h += `<button data-a="emcon" class="${ship.exterior.emcon ? 'on' : ''}">EMCON</button><button data-a="standby">STANDBY</button><button data-a="search">SEARCH</button>`;
-    for (const a of this.mind.ranked().filter((x) => !x.friendly).slice(0, 3)) h += `<button data-a="ping:${a.trackId}">PING ${esc(a.label)}</button><button data-a="track:${a.trackId}">TRK ${esc(a.label)}</button><button data-a="tele:${a.trackId}">LOOK ${esc(a.label)}</button>`;
-    h += `<button data-a="auto:sensors" class="${this.auto.sensors ? 'on' : ''}">AUTO SENSORS</button></div>`;
-    h += `<h4><span>THERMAL · RADIATORS ${ship.exterior.radiators.toUpperCase()}</span><span>${(ship.thermal.Tcabin - 273.15).toFixed(1)} °C cabin</span></h4><div class="row"><button data-a="rad:deployed">DEPLOY</button><button data-a="rad:stowed">STOW (RUN COLD)</button><button data-a="auto:thermal" class="${this.auto.thermal ? 'on' : ''}">AUTO</button>`;
-    if (ship.pd?.length) h += `<button data-a="auto:pd" class="${this.auto.pd ? 'on' : ''}">PD AUTO</button>`;
-    if (ag.mission.role === 'recon') h += `<button data-a="relay">RELAY TRACK FILE</button>`;
+    h += `<button data-a="emcon" data-tip="emcon" class="${ship.exterior.emcon ? 'on' : ''}">EMCON</button><button data-a="standby" data-tip="standby">STANDBY</button><button data-a="search" data-tip="search">SEARCH</button>`;
+    for (const a of this.mind.ranked().filter((x) => !x.friendly).slice(0, 3)) h += `<button data-a="ping:${a.trackId}" data-tip="ping">PING ${esc(a.label)}</button><button data-a="track:${a.trackId}" data-tip="track">TRK ${esc(a.label)}</button><button data-a="tele:${a.trackId}" data-tip="tele">LOOK ${esc(a.label)}</button>`;
+    h += `<button data-a="auto:sensors" data-tip="autoSensors" class="${this.auto.sensors ? 'on' : ''}">AUTO SENSORS</button></div>`;
+    h += `<h4><span>THERMAL · RADIATORS ${ship.exterior.radiators.toUpperCase()}</span><span>${(ship.thermal.Tcabin - 273.15).toFixed(1)} °C cabin</span></h4><div class="row"><button data-a="rad:deployed" data-tip="radDeploy">DEPLOY</button><button data-a="rad:stowed" data-tip="radStow">STOW (RUN COLD)</button><button data-a="auto:thermal" data-tip="autoThermal" class="${this.auto.thermal ? 'on' : ''}">AUTO</button>`;
+    if (ship.pd?.length) h += `<button data-a="auto:pd" data-tip="pdAuto" class="${this.auto.pd ? 'on' : ''}">PD AUTO</button>`;
+    if (ag.mission.role === 'recon') h += `<button data-a="relay" data-tip="relay">RELAY TRACK FILE</button>`;
     h += '</div>';
     const pend = ship.requests.filter((r) => r.status === 'pending');
     h += `<h4><span>REQUESTS ON THE PILOT'S BOARD</span><span>${pend.length}</span></h4>`;
@@ -281,11 +290,53 @@ export class AIView {
     const comp = this.s.world.events.query('pilot.intent').filter((e) => e.ship === ship.id);
     const acks = comp.filter((e) => e.intent === 'ComplianceAcknowledge'), refs = comp.filter((e) => e.intent === 'Refusal');
     const lat = acks.length ? acks.reduce((a, e) => a + (e.latency ?? 0), 0) / acks.length : null;
-    h += `<h4><span>PILOT (OBSERVABLE)</span><span><a data-a="say" style="color:${CYAN};cursor:pointer">SAY ▸ (TAB)</a></span></h4><div class="pil">
+    h += `<h4><span>PILOT (OBSERVABLE)</span><span><a data-a="say" data-tip="say" style="color:${CYAN};cursor:pointer">SAY ▸ (TAB)</a></span></h4><div class="pil">
       DIAL <b style="color:${AMBER}">${['CONFIRM ALL', 'CONFIRM WPNS', 'CONFIRM LETHAL', 'WPNS FREE', 'AUTONOMOUS'][dial]}</b><br>
       ${v ? `${v.conscious ? '' : '<b style="color:#ff4a36">UNRESPONSIVE</b> · '}HR ${v.hr.toFixed(0)} · RR ${v.rr.toFixed(0)} · SpO₂ ${(v.spo2 * 100).toFixed(0)}% · g ${v.g.toFixed(1)}<br>` : ''}
       complied ${acks.length}${lat != null ? ` (mean ${lat.toFixed(1)} s)` : ''} · refused ${refs.length}${v?.task ? `<br>doing: ${esc(v.task)}` : ''}</div>`;
     if (h !== this._conHTML) { const st = this.con.scrollTop; this.con.innerHTML = h; this.con.scrollTop = st; this._conHTML = h; }
+  }
+
+  /**
+   * Firing is a negotiation: you pick the shot; the pilot's dial (or their CONFIRM) authorises it;
+   * the pilot's WEAPONS CONSENT switch arms it. The console asks for what is missing and fires the
+   * moment both are given — if the solution still holds.
+   */
+  startFire(o, t) {
+    this.fireIntent = { key: o.key, trackId: o.data.trackId, n: o.data.n, label: o.label, t, askedConsent: false, status: `Firing: ${o.label}…` };
+    this._tickFire(t, true);
+  }
+
+  _tickFire(t, first = false) {
+    const fi = this.fireIntent;
+    if (!fi) return;
+    const ag = this.agent, ship = this.ship, I = ship.interior, pilot = this.pilot;
+    if (t - fi.t > 90 || ship.kkvRemaining <= 0) { this.hud.toast(`Firing window lost: ${fi.label}`); this.fireIntent = null; return; }
+    const opts = ag.fireOptions(t).filter((x) => x.data);
+    const o = opts.find((x) => x.key === fi.key) ?? opts.find((x) => x.data.trackId === fi.trackId);
+    if (!o) { fi.status = `${fi.label}: no firing solution right now — waiting for one`; return; }
+    const auth = ag.authorised('kkv', o.key, t);
+    const req = ship.requests.find((r) => r.kind === 'kkv' && r.key === o.key);
+    if (!auth.ok) {
+      if (req?.status === 'denied') { this.hud.toast(`The pilot DENIED: ${fi.label}`); this.fireIntent = null; return; }
+      if (!req || req.status !== 'pending') ag.executeFire(o, t); // raises the request on the pilot's board
+      fi.status = `Waiting for the pilot to CONFIRM "${o.label}" (their dial is below WPNS FREE). TAB → say why it matters.`;
+      if (first) this.hud.toast(`REQUESTED: ${o.label} — the pilot must CONFIRM`, 2600);
+      return;
+    }
+    if (I.get('weaponsConsent') !== 1) {
+      if (!fi.askedConsent && pilot?.request) {
+        fi.askedConsent = true;
+        const act = { id: 'consent', label: 'flip WEAPONS CONSENT', steps: [{ controlId: 'SW_CONSENT', bind: 'weaponsConsent', value: 1 }], risk: 0.15, effort: 0.2, procedural: false, lethalImplication: true };
+        pilot.request({ id: `C${Math.round(t)}`, problemId: 'consent', label: act.label, action: act, benefit: Math.min(1, 0.4 + o.data.pk * 0.6), urgency: 0.7, statedConfidence: o.data.pk, framing: 0.6 });
+        this.s.comms?.enqueue('ai', 'RequestInterior', { action: act.label, problem: `a firing solution on ${o.data.a.label}`, ttc: Math.max(5, o.data.sol.tGo), severity: 0.6 }, { priority: 0.8, ttl: 10, player: true });
+      }
+      fi.status = `Authorised — waiting for the pilot to flip WEAPONS CONSENT (asked). TAB → persuade them.`;
+      return;
+    }
+    ag.executeFire(o, t);
+    this.hud.toast(`FIRED: ${o.label} (Pk ${Math.round(o.data.pk * 100)}%)`, 3000);
+    this.fireIntent = null;
   }
 
   execManeuver(c) {

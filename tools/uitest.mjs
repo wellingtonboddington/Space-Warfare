@@ -42,11 +42,20 @@ async function clickEl(selector, name) {
   return r.ok;
 }
 const clickText = async (selector, text, name) => {
-  const ok = await page.evaluate(([sel, txt]) => { const el = [...document.querySelectorAll(sel)].find((e) => e.textContent.includes(txt)); if (!el) return false; el.setAttribute('data-uitest', '1'); return true; }, [selector, text]);
-  if (!ok) { check(`${name}: element exists`, false, `${selector} "${text}"`); return false; }
-  const r = await clickEl('[data-uitest="1"]', name);
-  await page.evaluate(() => document.querySelector('[data-uitest]')?.removeAttribute('data-uitest'));
-  return r;
+  // find by visible text, scroll to it, and check that what is topmost there carries that text
+  const r = await page.evaluate(([sel, txt]) => {
+    const el = [...document.querySelectorAll(sel)].find((e) => e.textContent.includes(txt));
+    if (!el) return null;
+    el.scrollIntoView({ block: 'center', inline: 'center' });
+    const b = el.getBoundingClientRect(), x = b.x + b.width / 2, y = b.y + b.height / 2;
+    const top = document.elementFromPoint(x, y);
+    const ok = !!top && (top === el || el.contains(top) || (top.closest(sel) && top.closest(sel).textContent.includes(txt)));
+    return { x, y, ok, top: top ? `${top.tagName}${top.id ? '#' + top.id : ''}` : 'none' };
+  }, [selector, text]);
+  if (!r) { check(`${name}: element exists`, false, `${selector} "${text}"`); return false; }
+  check(`${name}: clickable (topmost at its centre)`, r.ok, r.ok ? '' : `covered by ${r.top}`);
+  await page.mouse.click(r.x, r.y);
+  return r.ok;
 };
 const waitFor = (fn, ms = 60000, arg) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true).catch(() => false);
 
@@ -54,6 +63,12 @@ await page.goto(pathToFileURL(join(ROOT, 'index.html')).href);
 check('menu appears', await waitFor(() => !!document.querySelector('#menu .go'), 120000));
 await page.waitForTimeout(400);
 await shot('01_menu');
+
+// ---------------------------------------------------------------- how to play
+await clickText('#menu .go', 'HOW TO PLAY', 'HOW TO PLAY button');
+check('field manual opens from the menu', await waitFor(() => !!document.querySelector('#manual.open .box'), 5000));
+await clickText('#manual .close', 'CLOSE', 'manual CLOSE button');
+check('manual closes', await waitFor(() => !document.querySelector('#manual.open'), 5000));
 
 // ---------------------------------------------------------------- menu (Human, Recon)
 await clickEl('[data-mode="ai"]', 'AI seat card');
@@ -87,6 +102,26 @@ if (ctrl?.inView) {
   const flipped = await waitFor((b) => window.__severance.game().ship.interior.get('mfd.L.overlay') !== b, 45000, ctrl.before);
   check('clicking the switch makes the pilot flip it', flipped);
 }
+// hover explains, wheel zooms, C shows the cameras, H opens the manual
+if (ctrl?.inView) {
+  const p2 = await page.evaluate(() => { const g = window.__severance.game(); const v = g.cockpit.controlWorldPos('SW_OVL_L').clone().project(g.gr.nearCam); return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight }; });
+  await page.mouse.move(p2.x + 1, p2.y + 1);
+  check('hovering a control explains it', await waitFor(() => { const t = document.getElementById('sevtip'); return t && t.style.display === 'block' && /OVERLAY/.test(t.textContent); }, 20000));
+}
+const fov0 = await page.evaluate(() => window.__severance.eval((a) => a.ctrl.fovTarget));
+await page.mouse.move(480, 300);
+for (let i = 0; i < 6; i++) await page.mouse.wheel(0, -120);
+check('mouse wheel zooms in a long way', await waitFor((f) => window.__severance.eval((a) => a.ctrl.fovTarget) < f * 0.45, 10000, fov0));
+await page.keyboard.press('KeyC');
+check('C opens the exterior camera wall', await waitFor(() => document.querySelectorAll('[data-id^="CAM_EXT"],[data-id^="HULL_"]').length >= 4, 20000));
+await page.waitForTimeout(3000);
+await shot('03b_cameras');
+await page.keyboard.press('KeyC');
+check('C closes it', await waitFor(() => !document.querySelector('[data-id^="HULL_"]'), 10000));
+await page.keyboard.press('KeyH');
+check('H opens the field manual', await waitFor(() => !!document.querySelector('#manual.open'), 10000));
+await page.keyboard.press('KeyH');
+check('H closes it', await waitFor(() => !document.querySelector('#manual.open'), 10000));
 // talk to the AI
 await page.keyboard.press('Tab');
 check('TAB opens the talk panel', await waitFor(() => document.getElementById('chat')?.classList.contains('open'), 15000));

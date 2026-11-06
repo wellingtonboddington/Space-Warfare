@@ -39,7 +39,8 @@ export function humanOptions(session) {
     else add({ id: `active:${top.trackId}`, intent: 'OrderGoActive', data: { track: top.label }, label: `Go active on ${top.label}.`, score: 0.4, group: 'order', a: top });
     add({ id: `close:${top.trackId}`, intent: 'OrderClose', data: { track: top.label }, label: `Close on ${top.label}.`, score: 0.3, group: 'order', a: top });
     add({ id: `open:${top.trackId}`, intent: 'OrderOpen', data: { track: top.label }, label: `Open the range from ${top.label}.`, score: 0.3 + top.threat * 0.3, group: 'order', a: top });
-    if (ship.spec.weapons?.some((w) => w.type === 'kkv') && top.pHostile > 0.4) add({ id: `engage:${top.trackId}`, intent: 'OrderEngage', data: { track: top.label }, label: `Engage ${top.label}.`, score: 0.35 + top.pHostile * 0.3, group: 'order', a: top });
+    // you can order a shot at any hostile; the AI still needs a firing solution and your CONSENT switch
+    if (ship.kkvRemaining > 0) for (const h of ranked.filter((a) => a.pHostile > 0.3).slice(0, 3)) add({ id: `engage:${h.trackId}`, intent: 'OrderEngage', data: { track: h.label }, label: `Engage ${h.label} (${h.family}, ${Math.round(h.pFamily * 100)}%) — fire when you have a solution.`, score: 0.4 + h.pHostile * 0.35, group: 'order', a: h });
   }
   if (ranked.some((a) => a.pKKV > 0.3)) add({ id: 'evade', intent: 'OrderEvade', data: {}, label: 'Evade. Now.', score: 0.85, group: 'order' });
   if (agent.orders.holdFire) add({ id: 'freefire', intent: 'GrantLatitude', data: { from: 0, to: 1 }, label: 'Cleared to fire again.', score: 0.4, group: 'order', clearHold: true });
@@ -75,7 +76,10 @@ export function applyHumanOption(session, opt) {
     case 'OrderClose': agent.orders.maneuver = { kind: 'close', trackId: a.trackId, t }; agent.orders.engage = { trackId: a.trackId, t }; ack(`closing on ${a.label}`); break;
     case 'OrderOpen': agent.orders.maneuver = { kind: 'open', trackId: a.trackId, t }; ack(`opening from ${a.label}`); break;
     case 'OrderEvade': agent.orders.maneuver = { kind: 'evade', t }; agent.orders.evadeUntil = t + 30; ack('evading'); break;
-    case 'OrderEngage': agent.orders.engage = { trackId: a.trackId, t }; agent.orders.holdFire = false; ack(`engaging ${a.label}`); break;
+    case 'OrderEngage':
+      agent.orders.engage = { trackId: a.trackId, t }; agent.orders.holdFire = false; ack(`engaging ${a.label}`);
+      if (ship.interior.get('weaponsConsent') !== 1) s.ui?.toast?.('Ordered — it can fire on that track now, but WEAPONS CONSENT (guarded switch, pedestal) is still SAFE', 4000);
+      break;
     case 'OrderHoldFire': agent.orders.holdFire = true; ack('holding fire'); break;
     case 'GrantLatitude': if (opt.clearHold) { agent.orders.holdFire = false; ack('weapons released'); } break;
     case 'OrderRelay': agent.orders.relay = 'now'; ack('sending the track file'); break;

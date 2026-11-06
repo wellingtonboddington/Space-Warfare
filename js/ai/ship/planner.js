@@ -140,12 +140,12 @@ function objectiveMetrics(ctx, cand, own, futures) {
     }
     out.value = den ? Math.min(1, 0.25 + (num / den) / 2.32 * 0.6) : 0.4;
     out.standoff = mission.standoff ?? 70e3;
-  } else if (mission.role === 'strike' || mission.role === 'raid' || mission.role === 'hunt') {
+  } else if (mission.role === 'strike' || mission.role === 'raid' || mission.role === 'hunt' || prosecuting(ctx)) {
     // reach a launch window: range to the mission target inside [rMin, rMax] at some point
     const tgt = ctx.targetTrack;
     const fut = tgt ? futures.get(tgt.trackId) : null;
     if (fut) {
-      const [rLo, rHi] = mission.launchWindow ?? [35e3, 110e3];
+      const [rLo, rHi] = launchWindowFor(mission, tgt);
       let best = 0;
       for (const f of fut) for (let i = 0; i < own.length; i++) {
         const d = len(sub(f[i].pos, own[i].pos));
@@ -193,7 +193,9 @@ export function candidates(ctx) {
     const tr = mind.track(a.trackId);
     if (!tr) continue;
     const tgt = { pos: tr.pos(), vel: tr.vel() };
-    for (const standoff of standoffsFor(mission, a)) for (const T of [150, 300]) {
+    // slower intercepts are much cheaper from long range (and still physically honest CW seeds)
+    const Ts = a.range > 90e3 ? [150, 300, 600] : [150, 300];
+    for (const standoff of standoffsFor(mission, a)) for (const T of Ts) {
       const dv = cwApproach(own, tgt, standoff, T);
       if (!dv || len(dv) > Math.min(ship.deltaVRemaining() * 0.45, 600) || len(dv) < 1) continue;
       out.push({ key: `close:${a.trackId}:${standoff}:${T}`, label: `close ${a.label} to ${(standoff / 1e3).toFixed(0)} km`, dv, kind: standoff < 60e3 ? 'attack' : 'close', target: a.trackId });
@@ -222,7 +224,37 @@ export function candidates(ctx) {
 function standoffsFor(mission, a) {
   if (mission.role === 'recon') return [mission.standoff ?? 70e3, 140e3];
   if (mission.role === 'strike' || mission.role === 'raid' || mission.role === 'hunt') return [45e3, 90e3];
+  if ((mission.role === 'patrol' || mission.role === 'escort') && a.pHostile > 0.5) return a.family === 'interceptor' ? [25e3, 40e3] : [40e3, 75e3];
   return [60e3];
+}
+
+/**
+ * A patrol that has a confident hostile goes after it; an escort goes after a hostile closing on
+ * its charge. Both then score manoeuvres by reaching a launch window, like a strike. (Doctrine,
+ * not a script: the trigger is the ship's own belief.)
+ */
+/**
+ * Where a KKV shot is worth taking: an agile target (an Interceptor dodges a long KKV flight) has to
+ * be engaged close; a heavy, slow target can be engaged from further out. A mission-specified window
+ * is honoured unless it is clearly too long for the target.
+ */
+export function launchWindowFor(mission, tgt) {
+  const agile = tgt && (tgt.family === 'interceptor' || tgt.top?.cls?.startsWith?.('interceptor'));
+  if (agile) return [14e3, 42e3];
+  return mission.launchWindow ?? [35e3, 110e3];
+}
+
+export function prosecuting(ctx) {
+  const { mission, targetTrack, ship } = ctx;
+  if (!targetTrack || targetTrack.friendly || targetTrack.pHostile < 0.55) return false;
+  if (!['interceptor', 'gunship'].includes(targetTrack.family) && targetTrack.pKKV < 0.3) return false;
+  if (mission.role === 'patrol') return true;
+  if (mission.role === 'escort') {
+    const asset = ship.world.get(mission.protectId);
+    const prot = targetTrack.cpaProt?.find((c) => c.id === mission.protectId);
+    return !!asset && (targetTrack.range < 160e3 || (prot && prot.d < 60e3));
+  }
+  return false;
 }
 
 /** Δv to reach `standoff` metres short of the target (along current LOS) in T seconds (CW seed). */

@@ -30,12 +30,16 @@ pilot's stress and trust history. Nothing is scripted.
 
 | input | action |
 |---|---|
+| hover (½ s) | explains what that control or screen page does |
 | point + LMB | operate the control under the cursor (your simulated body reaches for it) |
+| mouse wheel / + − | zoom, all the way in to read a gauge; zooms toward the cursor |
+| F | focus on the screen or control under the cursor (F again to go back) |
+| C | exterior camera wall: every hull camera, click one to enlarge |
+| H | field manual (also on the menu: HOW TO PLAY) |
 | click empty space | capture the mouse for free look; the reticle then picks controls (Esc releases) |
 | right-drag | look around without capturing the mouse |
 | RMB | turn a rotary back, or **CHECK THIS** on a raw IR/telescope/optical page (the AI integrates there for longer and confirms or rejects) |
 | SPACE | lean in |
-| Z | zoom |
 | V | visor |
 | TAB | talk to the AI: orders, questions, confirm/deny |
 | `[` `]` | time compression (drops back to real time when something happens) |

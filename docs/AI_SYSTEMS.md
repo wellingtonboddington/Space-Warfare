@@ -67,6 +67,20 @@ from each track's posterior, our own path including slew and burn time, and KKV 
 from the miss distance and the uncertainty growth. The utility AI scores the candidates.
 The AI-POV console lists the same candidates for the player, and Pass 2 can hand them to any seat.
 
+### Engagement doctrine
+
+- **Prosecution.** A patrol that holds a confident hostile goes after it, and so does an escort
+  whose charge is threatened (`prosecuting()` in the planner). Both then score manoeuvres by
+  reaching a launch window, as a strike does. The trigger is the ship's own belief.
+- **Launch windows.** These depend on the target (`launchWindowFor`). An agile Interceptor has to
+  be engaged inside about 14–42 km, because it dodges a long KKV flight. Heavy, slow targets can
+  be engaged from further out.
+- **Risk acceptance by role.** Ships sent to fight weigh survival and fuel less steeply than ships
+  sent to look or to wait, scaled by each captain's caution trait. Cautious captains can still
+  decline a costly chase.
+- **Long-range intercepts.** The planner adds slow (600 s) intercepts, so closing from more than
+  90 km becomes affordable.
+
 ### Fire control and point defence
 
 - **Fire control.** KKV intercepts are seeded with Clohessy–Wiltshire and refined with Newton's

@@ -18,12 +18,13 @@ const RAW = '#bfe6b4', RAW_DIM = '#5f7a59', AI = '#ffb02e', AI_DIM = '#8a5d14', 
 const FONT = (px, bold = false) => `${bold ? 'bold ' : ''}${px}px "Cascadia Mono","Consolas","DejaVu Sans Mono",monospace`;
 
 const FRAG = `
-uniform sampler2D uCanvas; uniform sampler2D uFeed; uniform float uFeedMix; uniform float uBright; uniform float uTime; uniform float uNoise; uniform float uFlicker; uniform vec2 uPx;
+uniform sampler2D uCanvas; uniform sampler2D uFeed; uniform float uFeedMix; uniform float uBright; uniform float uTime; uniform float uNoise; uniform float uFlicker; uniform vec2 uPx; uniform float uFeedExp;
 varying vec2 vUv;
 float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
 void main(){
   vec2 uv = vUv;
-  vec3 feed = texture2D(uFeed, uv).rgb * uFeedMix;
+  vec3 feed = texture2D(uFeed, uv).rgb * uFeedExp;
+  feed = (feed / (1.0 + feed)) * 0.85 * uFeedMix;          // a display cannot be brighter than its backlight
   vec4 ov = texture2D(uCanvas, uv);
   vec3 col = mix(feed, ov.rgb, ov.a);
   // LCD subpixel grid + faint row structure
@@ -47,7 +48,7 @@ class Screen {
     this.tex.colorSpace = THREE.SRGBColorSpace;
     this.tex.minFilter = THREE.LinearFilter; this.tex.generateMipmaps = false;
     this.mat = new THREE.ShaderMaterial({
-      uniforms: { uCanvas: { value: this.tex }, uFeed: { value: BLACK }, uFeedMix: { value: 0 }, uBright: { value: 1 }, uTime: { value: 0 }, uNoise: { value: 0.004 }, uFlicker: { value: 0 }, uPx: { value: new THREE.Vector2(this.w, this.h) } },
+      uniforms: { uCanvas: { value: this.tex }, uFeed: { value: BLACK }, uFeedMix: { value: 0 }, uFeedExp: { value: 1 }, uBright: { value: 1 }, uTime: { value: 0 }, uNoise: { value: 0.004 }, uFlicker: { value: 0 }, uPx: { value: new THREE.Vector2(this.w, this.h) } },
       vertexShader: VERT, fragmentShader: FRAG, toneMapped: false,
     });
     this.page = 0;
@@ -92,7 +93,7 @@ export class ScreenManager {
     if (!sc) return;
     const pages = PAGES[id];
     if (pages[n - 1] === 'GAIN') { this.gain[screenKey] = (this.gain[screenKey] + 1) % 3; return; }
-    if (pages[n - 1] === 'EXT' && sc.page === n - 1) this.extCam = (this.extCam + 1) % 3;
+    if (pages[n - 1] === 'EXT' && sc.page === n - 1) this.extCam = (this.extCam + 1) % Math.max(1, this.extList().length);
     sc.page = n - 1;
     sc.nextDraw = 0;
   }
@@ -104,9 +105,12 @@ export class ScreenManager {
     const out = [];
     const p = this.pageName('MFD_L');
     if (p === 'OPT') out.push(this._hasTele() ? 'telescope' : 'optical');
-    if (p === 'EXT') out.push(['CAM_EXT_AFT', 'CAM_EXT_FWD', 'CAM_EXT_BOOM'][this.extCam]);
+    if (p === 'EXT') out.push(this._extId());
     return out;
   }
+
+  extList() { return this.extCams ?? [{ id: 'CAM_EXT_AFT', label: 'AFT' }]; }
+  _extId() { const l = this.extList(); return l[this.extCam % l.length]?.id; }
 
   _hasTele() { return this.ship.spec.sensors.some((s) => s.component === 'telescope'); }
 
@@ -121,6 +125,7 @@ export class ScreenManager {
       const bus = sc.id === 'AI' ? 'B' : 'A';
       const volts = P.busV[bus] / P.nominalV;
       sc.mat.uniforms.uTime.value = t;
+      sc.mat.uniforms.uFeedExp.value = ship.sunlit ? 0.9 : 14.0;
       sc.mat.uniforms.uBright.value = powered ? Math.max(0, Math.min(1.1, (volts - 0.55) / 0.4)) : 0;
       sc.mat.uniforms.uFlicker.value = Math.min(0.6, (P.brownout[bus] ?? 0) * 2 + (v < 0.9 ? 0.2 : 0));
       // stagger redraws: ~8 Hz per screen, never all on the same frame
@@ -205,8 +210,9 @@ export class ScreenManager {
       return;
     }
     if (page === 'EXT') {
-      const id = ['CAM_EXT_AFT', 'CAM_EXT_FWD', 'CAM_EXT_BOOM'][this.extCam];
-      this._header(g, W, `EXT CAM  ${id.slice(8)}`, RAW, 'PRESS EXT TO CYCLE');
+      const id = this._extId(), cam = this.extList().find((c) => c.id === id);
+      this._header(g, W, `EXT ${this.extCam + 1}/${this.extList().length}  ${cam?.label ?? id}`, RAW, 'EXT: NEXT · C: ALL');
+      if (id === 'HULL_TRACK' && this.trackLabel) { g.font = FONT(13); g.fillStyle = RAW; g.textAlign = 'left'; g.fillText(this.trackLabel(), 8, H - 40); }
       sc.mat.uniforms.uFeed.value = this.feeds.texture(id) ?? BLACK; sc.mat.uniforms.uFeedMix.value = 1;
       sc.box = null;
     }

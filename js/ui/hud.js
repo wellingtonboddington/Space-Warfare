@@ -32,16 +32,38 @@ const CSS = `
 #pause .box{background:#0b0f0c;border:1px solid #2c3a30;padding:22px 28px;min-width:320px;color:#d8e0d6}
 #pause button{display:block;width:100%;margin:8px 0;background:#132017;color:#d8e0d6;border:1px solid #2f4234;padding:8px;font:inherit;cursor:pointer}
 #hud .dim{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .4s}
+#sevtip{position:fixed;z-index:18;pointer-events:none;font-family:"Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;left:50%;top:calc(50% + 34px);transform:translateX(-50%);max-width:min(420px,80vw);background:rgba(6,10,9,.94);border:1px solid #3a4a3e;border-left:2px solid #7fd6e8;padding:7px 10px;font-size:12px;line-height:1.45;color:#dfe6e0;display:none;white-space:normal}
+#sevtip i{color:#9fb59a;font-style:normal}
+#hud .visor{position:absolute;inset:0;display:none;background:radial-gradient(ellipse 70% 62% at 50% 46%,rgba(0,0,0,0) 62%,rgba(10,14,18,.55) 84%,rgba(4,6,8,.92) 100%),linear-gradient(170deg,rgba(150,170,190,.07) 0%,rgba(0,0,0,0) 30%,rgba(120,140,160,.04) 60%,rgba(0,0,0,0) 100%)}
+#hud .visor.on{display:block}
+#hud .visor .lbl{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);font-size:11px;letter-spacing:.16em;color:#9fc6d8;opacity:.8}
+#hud .coach{position:absolute;left:12px;top:30px;max-width:min(380px,42vw);font-size:12px;line-height:1.45;text-shadow:0 0 3px #000,0 0 6px #000;pointer-events:none}
+#hud .coach .obj{color:#ffd27a;letter-spacing:.04em}
+#hud .coach .st{color:#cfe7c8}
+#hud .coach .hint{color:#7fd6e8;margin-top:3px}
+#hud .coach .ev{color:#b8c2bc;opacity:.85}
+#hud .coach .ev.new{color:#fff}
+#hud.aimode .coach{left:calc(min(24vw,360px) + 10px);top:44px;max-width:min(420px,40vw)}
+#manual{position:fixed;inset:0;z-index:22;background:rgba(2,4,3,.93);display:none;align-items:center;justify-content:center;pointer-events:auto;font-family:"Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;color:#d8e0d6}
+#manual.open{display:flex}
+#manual .box{width:min(860px,94vw);max-height:88vh;overflow:auto;background:#070b09;border:1px solid #2c3a30;padding:18px 22px;font-size:13px;line-height:1.6}
+#manual .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+#manual .tabs button,#manual .close{background:#101611;color:#bcd0b6;border:1px solid #2c3a30;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}
+#manual .tabs button.on{border-color:#ffb02e;color:#ffd27a}
+#manual h2{font-size:14px;letter-spacing:.16em;color:#ffb02e;margin:4px 0 10px}
+#manual td{padding:3px 10px 3px 0;vertical-align:top}#manual td:first-child{color:#ffd27a;white-space:nowrap}
+
 #hud.aimode .top{display:none}
+#hud.walled .coach,#hud.walled .help,#hud.walled .top,#hud.walled .ret,#hud.walled .hover{display:none}
 #hud.aimode .subs{left:calc(min(24vw,360px) + (70vw - min(24vw,360px)) / 2);bottom:36%;width:min(640px,44vw)}
 #hud.aimode .sub{font-size:14px;background:rgba(0,0,0,.75)}
 `;
 
 export class Hud {
   constructor(root) {
-    if (!document.getElementById('hud-css')) { const st = document.createElement('style'); st.id = 'hud-css'; st.textContent = CSS; document.head.appendChild(st); }
+    ensureHudCss();
     this.el = document.createElement('div'); this.el.id = 'hud';
-    this.el.innerHTML = `<div class="dim"></div><div class="ret"></div><div class="hover"></div><div class="subs"></div><div class="top"></div><div class="help"></div>`;
+    this.el.innerHTML = `<div class="visor"><div class="lbl"></div></div><div class="dim"></div><div class="ret"></div><div class="hover"></div><div class="subs"></div><div class="top"></div><div class="coach"></div><div class="help"></div>`;
     root.appendChild(this.el);
     this.chat = document.createElement('div'); this.chat.id = 'chat'; root.appendChild(this.chat);
     // Input is handled on the container at pointer-down, so a refresh of the list can never eat a
@@ -55,6 +77,9 @@ export class Hud {
     this.chat.addEventListener('pointerenter', () => { this.chatHover = true; });
     this.chat.addEventListener('pointerleave', () => { this.chatHover = false; });
     this.pauseEl = document.createElement('div'); this.pauseEl.id = 'pause'; root.appendChild(this.pauseEl);
+    this.manualEl = document.createElement('div'); this.manualEl.id = 'manual'; root.appendChild(this.manualEl);
+    this.tipEl = document.createElement('div'); this.tipEl.id = 'sevtip'; root.appendChild(this.tipEl);
+    this.manualOpen = false;
     this.$ = (s) => this.el.querySelector(s);
     this.subs = new Map();
     this.framing = 'calm';
@@ -63,7 +88,7 @@ export class Hud {
     this.paused = false;
   }
 
-  modalOpen() { return this.chatOpen || this.paused; }
+  modalOpen() { return this.chatOpen || this.paused || this.manualOpen; }
   setLocked(l) { this.locked = l; }
   setHelp(html) { this.$('.help').innerHTML = html; }
   setLayout(mode) { this.el.classList.toggle('aimode', mode === 'ai'); }
@@ -79,6 +104,37 @@ export class Hud {
     else { h.style.left = ''; h.style.top = ''; }
     this.$('.ret').classList.toggle('on', !!text);
   }
+
+  /** Explanation box after a hover dwell; pos = cursor (free mouse) or null (reticle). */
+  setTip(html, pos = null) {
+    const t = this.tipEl;
+    if (!html) { t.style.display = 'none'; return; }
+    t.innerHTML = html; t.style.display = 'block';
+    if (pos) { const left = Math.min(innerWidth - 220, Math.max(220, pos.x)); t.style.left = `${left}px`; t.style.top = `${Math.min(innerHeight - 160, pos.y + 40)}px`; }
+    else { t.style.left = ''; t.style.top = ''; }
+  }
+
+  setVisor(closed, sealed) {
+    const v = this.$('.visor');
+    v.classList.toggle('on', !!closed);
+    if (closed) v.querySelector('.lbl').textContent = sealed ? 'VISOR DOWN · SUIT O₂ · SEALED' : 'VISOR DOWN · NOT SEALED (SUIT O₂ OFF)';
+  }
+
+  setCoach(html) { const c = this.$('.coach'); if (c._h !== html) { c.innerHTML = html; c._h = html; } }
+
+  openManual(pages, start = 0) {
+    this.manualOpen = true;
+    if (document.pointerLockElement) document.exitPointerLock?.();
+    const render = (i) => {
+      this.manualEl.innerHTML = `<div class="box"><div class="tabs">${pages.map((p, k) => `<button data-k="${k}" class="${k === i ? 'on' : ''}">${esc(p.title)}</button>`).join('')}<span style="flex:1"></span><button class="close">CLOSE (H)</button></div><h2>${esc(pages[i].title)}</h2>${pages[i].body}</div>`;
+      for (const b of this.manualEl.querySelectorAll('[data-k]')) b.onclick = () => render(+b.dataset.k);
+      this.manualEl.querySelector('.close').onclick = () => this.closeManual();
+    };
+    render(start);
+    this.manualEl.classList.add('open');
+  }
+
+  closeManual() { this.manualOpen = false; this.manualEl.classList.remove('open'); }
 
   toast(text, ms = 1800) {
     let t = this.$('.toast');
@@ -151,7 +207,26 @@ export class Hud {
 
   closePause() { this.paused = false; this.pauseEl.classList.remove('open'); }
 
-  dispose() { this.el.remove(); this.chat.remove(); this.pauseEl.remove(); }
+  dispose() { this.el.remove(); this.chat.remove(); this.pauseEl.remove(); this.manualEl.remove(); this.tipEl.remove(); }
+}
+
+export function ensureHudCss() { if (!document.getElementById('hud-css')) { const st = document.createElement('style'); st.id = 'hud-css'; st.textContent = CSS; document.head.appendChild(st); } }
+
+/** The field manual without a running game (from the main menu). */
+export function showManual(root, pages, start = 0) {
+  ensureHudCss();
+  const el = document.createElement('div'); el.id = 'manual'; el.className = 'open'; el.style.zIndex = '24';
+  const close = () => { el.remove(); window.removeEventListener('keydown', onKey); };
+  const onKey = (e) => { if (e.code === 'Escape' || e.code === 'KeyH') close(); };
+  const render = (i) => {
+    el.innerHTML = `<div class="box"><div class="tabs">${pages.map((p, k) => `<button data-k="${k}" class="${k === i ? 'on' : ''}">${esc(p.title)}</button>`).join('')}<span style="flex:1"></span><button class="close">CLOSE</button></div><h2>${esc(pages[i].title)}</h2>${pages[i].body}</div>`;
+    for (const b of el.querySelectorAll('[data-k]')) b.onclick = () => render(+b.dataset.k);
+    el.querySelector('.close').onclick = close;
+  };
+  render(start);
+  root.appendChild(el);
+  window.addEventListener('keydown', onKey);
+  return close;
 }
 
 export function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }

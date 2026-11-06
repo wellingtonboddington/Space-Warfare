@@ -17,7 +17,7 @@ import layout from '../data/cockpit_layout.json' with { type: 'json' };
 
 const COMPRESSION = [1, 2, 4, 8, 16, 32];
 // Events that drop time compression back to real time (the world got interesting)
-const ALERT_EVENTS = ['kkv.launch', 'impact', 'ai.request', 'ai.needConsent', 'fault.breach', 'power.arc', 'crew.injury', 'ship.destroyed', 'rwr.intercept', 'lwr.illuminated'];
+const ALERT_EVENTS = ['kkv.launch', 'impact', 'ai.request', 'ai.needConsent', 'fault.breach', 'power.arc', 'crew.injury', 'ship.destroyed', 'rwr.intercept', 'lwr.illuminated', 'objective.targetDisabled', 'ship.collision', 'ai.relay', 'ai.fired'];
 
 export class Game {
   constructor({ gr, assets, opts, ui, voice, audio }) {
@@ -55,6 +55,8 @@ export class Game {
     this.feeds = new FeedManager(gr, { quality: gr.q });
     this._addFeeds();
     this.screens = new ScreenManager({ session: s, cockpit: this.cockpit, feeds: this.feeds });
+    this.screens.extCams = this.extCams;
+    this.screens.trackLabel = () => this.trackCamLabel ?? '';
     // Wire comms → voice/subtitles/COMM screen
     if (s.comms) {
       this.disposers.push(s.comms.on((e) => {
@@ -67,7 +69,7 @@ export class Game {
     }
     // Time compression auto-drops when the world gets interesting
     for (const ev of ALERT_EVENTS) this.disposers.push(s.world.events.on(ev, (e) => {
-      if (e.ship && e.ship !== this.ship.id && ev !== 'kkv.launch' && ev !== 'ship.destroyed') return;
+      if (e.ship && e.ship !== this.ship.id && !['kkv.launch', 'ship.destroyed', 'objective.targetDisabled'].includes(ev)) return;
       if (this.compIx > 0) this.setCompression(0, ev.replace(/^ai\./, '').replace('.', ' '));
     }));
     this.disposers.push(s.world.events.on('ai.request', () => this.audio?.chime?.('request')));
@@ -90,9 +92,50 @@ export class Game {
     const tele = ship.sensors?.sensors.find((x) => x.spec.type === 'optical' && x.spec.component === 'telescope');
     if (opt) f.add('optical', { fps: 8, w: 256, h: 192, pose: () => sensorPose(vis, opt.pointing ?? qRotate(ship.q, opt.spec.boresight), 2 * opt.spec.fovHalf * 180 / Math.PI, up()) });
     if (tele) f.add('telescope', { fps: 8, w: 256, h: 192, pose: () => sensorPose(vis, tele.pointing ?? qRotate(ship.q, tele.spec.boresight), 2 * tele.spec.fovHalf * 180 / Math.PI, up()) });
-    for (const id of ['CAM_EXT_AFT', 'CAM_EXT_FWD', 'CAM_EXT_BOOM']) {
+    this.extCams = [];
+    const addExt = (id, label, o) => { f.add(id, { fps: 10, nearClip: 0.05, w: 320, h: 240, ...o }); this.extCams.push({ id, label }); };
+    for (const [id, label] of [['CAM_EXT_AFT', 'DORSAL · AFT'], ['CAM_EXT_FWD', 'VENTRAL · FWD'], ['CAM_EXT_BOOM', 'RADIATOR BOOM']]) {
       const cam = vis?.model ? findCamera(vis.model, id) : null;
-      if (cam) f.add(id, { fps: 10, camera: cam, nearClip: 0.05 });
+      if (cam) addExt(id, label, { camera: cam });
+    }
+    // Extra hull cameras, mounted on the body (sim body frame: +x starboard, +y nose, +z up)
+    if (vis?.model) {
+      vis.model.updateWorldMatrix(true, true);
+      const box = new THREE.Box3();
+      const inv = new THREE.Matrix4().copy(vis.body.matrixWorld).invert();
+      vis.model.traverse((o) => { if (o.isMesh && o.visible) { o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld))); } });
+      const mount = (pos, look, up = [0, 0, 1]) => {
+        const o = new THREE.Object3D();
+        o.position.set(...pos);
+        const m = new THREE.Matrix4().lookAt(new THREE.Vector3(...pos), new THREE.Vector3(...look), new THREE.Vector3(...up));
+        o.quaternion.setFromRotationMatrix(m);
+        vis.body.add(o);
+        return o;
+      };
+      const { min, max } = box, cy = (min.y + max.y) / 2;
+      addExt('HULL_NOSE', 'NOSE · FWD', { camera: mount([0.25, max.y + 0.2, 0.2], [0.25, max.y + 50, 0.2]), fov: 50 });
+      addExt('HULL_TAIL', 'AFT TRUSS · LOOKING FWD', { camera: mount([max.x * 0.55, min.y + 1.2, max.z + 0.6], [0, max.y, 0]), fov: 62 });
+      addExt('HULL_BELLY', 'BELLY · AFT', { camera: mount([0, max.y - 2.5, min.z - 0.25], [0, min.y - 4, min.z - 1.5]), fov: 70 });
+      const rack = ['KKV_0', 'KKV_1', 'KKV_2', 'KKV_3'].map((n) => vis.nodes?.get(n)).filter(Boolean);
+      if (rack.length) {
+        const c = new THREE.Vector3();
+        for (const n of rack) c.add(n.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv));
+        c.divideScalar(rack.length);
+        const side = c.z >= 0 ? 1 : -1;
+        addExt('HULL_RACK', 'KKV RACK', { camera: mount([c.x + 2.5, c.y + 4, c.z + side * 2.2], [c.x, c.y, c.z]), fov: 55 });
+      }
+      // Gimballed tracking camera: follows our newest KKV in flight (telemetry), else the top threat
+      addExt('HULL_TRACK', 'TRACKING CAMERA', { fov: 6, pose: () => {
+        const s = this.session, me = this.ship;
+        const mine = s.world.ofKind('kkv').filter((k) => k.ownerId === me.id && k.alive).sort((a, b) => (b.tLaunch ?? 0) - (a.tLaunch ?? 0))[0];
+        const a = mine ? null : s.playerMind.ranked().find((x) => !x.friendly);
+        const tgt = mine ? mine.pos : a ? s.playerMind.track(a.trackId)?.pos() : null;
+        const dir = tgt ? [tgt[0] - me.pos[0], tgt[1] - me.pos[1], tgt[2] - me.pos[2]] : qRotate(me.q, [0, 1, 0]);
+        const dist = Math.hypot(...dir);
+        const p = sensorPose(vis, dir, mine ? Math.max(2, Math.min(40, 2 * Math.atan(60 / Math.max(1, dist)) * 180 / Math.PI)) : 4, up());
+        this.trackCamLabel = mine ? `TRACKING OUR KKV · ${(dist / 1000).toFixed(1)} km` : a ? `TRACKING ${a.label} (AI's estimate) · ${(a.range / 1000).toFixed(0)} km` : 'TRACKING · NO TARGET';
+        return p;
+      } });
     }
     for (const id of ['CAM_PILOT', 'CAM_WIDE', 'CAM_LEFT', 'CAM_RIGHT']) {
       const cam = cp.model ? findCamera(cp.model, id) : null;
@@ -102,6 +145,7 @@ export class Game {
 
   /** Advance the sim by real dt (respecting pause and compression). Returns steps taken. */
   stepSim(dtReal) {
+    if (this.session.comms) this.session.comms.compression = this.paused ? 1 : this.timeScale;
     if (this.paused || this.ended) return 0;
     this.acc += Math.min(0.25, dtReal) * this.timeScale;
     let n = 0;

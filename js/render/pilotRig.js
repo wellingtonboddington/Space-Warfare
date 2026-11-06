@@ -51,9 +51,19 @@ export class PilotRig {
       if (bone) { this.b[n] = bone; bone.userData.rest = bone.quaternion.clone(); bone.userData.restScale = bone.scale.clone(); }
     }
     this.meshes = [];
+    // First person: everything of the body within a small radius of the eye (head, helmet, neck
+    // ring, shoulder tops) is cut away in the fragment shader, so arms, hands and legs stay
+    // visible and nothing can wrap around the camera. Off (w = 0) for the cabin camera feeds.
+    this.eyeClip = { value: new THREE.Vector4(0, 0, 0, 0) };
+    const clipped = new Map();
     this.model.traverse((o) => {
       if (o.isMesh && o.morphTargetDictionary) this.meshes.push(o);
-      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
+      if (o.isMesh) {
+        o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        const out = mats.map((m) => { if (!clipped.has(m)) clipped.set(m, withEyeClip(m, this.eyeClip)); return clipped.get(m); });
+        o.material = Array.isArray(o.material) ? out : out[0];
+      }
     });
     this.visor = findNode(this.model, 'VISOR');
     this.visorK = 0;
@@ -72,11 +82,12 @@ export class PilotRig {
 
   setFirstPerson(fp) {
     this.firstPerson = fp;
-    if (!this.ok || !this.b.head) return;
-    // collapse the head (and the helmet parented to it) so the camera sits cleanly in it
-    const s = fp ? 0.0001 : 1;
-    this.b.head.scale.setScalar(s);
+    if (!this.ok) return;
+    this.eyeClip.value.w = fp ? EYE_CLIP_R : 0;
   }
+
+  /** Centre of the first-person cut-away (the camera position, world space). */
+  setEye(pos) { this.eyeClip.value.x = pos.x; this.eyeClip.value.y = pos.y; this.eyeClip.value.z = pos.z; }
 
   /** Points of interest the pilot's eyes go to (world positions). */
   _poi(name) {
@@ -313,6 +324,24 @@ export class PilotRig {
 
   /** Head spring offset in the model frame (first-person camera sway). */
   headOffset() { return this.head.x; }
+}
+
+const EYE_CLIP_R = 0.3; // m: head, helmet shell and neck ring sit inside this
+
+/** Clone a material with a fragment discard inside a sphere around the eye (chains any existing hook). */
+function withEyeClip(m, uniform) {
+  const c = m.clone();
+  const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey?.bind(m);
+  c.onBeforeCompile = (sh, r) => {
+    prev?.call(c, sh, r);
+    sh.uniforms.uEyeClip = uniform;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vEyeClipW;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvEyeClipW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vEyeClipW;\nuniform vec4 uEyeClip;')
+      .replace('void main() {', 'void main() {\n  if (uEyeClip.w > 0.0 && distance(vEyeClipW, uEyeClip.xyz) < uEyeClip.w) discard;');
+  };
+  c.customProgramCacheKey = () => `${prevKey ? prevKey() : ''}|eyeclip`;
+  return c;
 }
 
 function rotLocal(bone, axis, angle) {

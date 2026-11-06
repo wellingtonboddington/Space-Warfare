@@ -106,6 +106,36 @@ export function collisionHook(world) {
       break;
     }
   }
+  shipCollisions(world, ships);
+}
+
+/**
+ * Hull-on-hull contact. Ships are not ghosts: if two hulls' paths cross within a step, each takes
+ * the other as an impactor (the lighter mass sets the energy), resolved by the same damage model
+ * as any projectile. At orbital closing speeds that is almost always the end of both.
+ */
+function shipCollisions(world, ships) {
+  for (let i = 0; i < ships.length; i++) for (let j = i + 1; j < ships.length; j++) {
+    const A = ships[i], B = ships[j];
+    if (!A.prevPos || !B.prevPos || A._collided?.has(B.id)) continue;
+    const reach = boundingRadius(A) + boundingRadius(B) + len(sub(sub(A.pos, A.prevPos), sub(B.pos, B.prevPos)));
+    if (len(sub(A.pos, B.pos)) > reach) continue;
+    for (const [S, O] of [[A, B], [B, A]]) {
+      if (!S.alive && !S.wreck) continue;
+      // O's centre path relative to S, in S's body frame, against S's hit boxes inflated by O's core radius
+      const a = qRotateInv(S.q, sub(O.prevPos, S.prevPos)), b = qRotateInv(S.q, sub(O.pos, S.pos));
+      const core = 0.45 * boundingRadius(O);
+      let best = null;
+      for (const box of hitBoxes(S)) { const tf = segBox(a, b, box.c, box.h, core); if (tf !== null && (!best || tf < best.tf)) best = { tf, box }; }
+      if (!best) continue;
+      (A._collided ??= new Set()).add(B.id); (B._collided ??= new Set()).add(A.id);
+      const vRel = sub(O.vel, S.vel);
+      const proxy = { id: O.id, kind: 'collision', mass: Math.min(A.mass, B.mass), radius: core, ownerId: O.id, alive: false };
+      world.events.emit(world.t, 'ship.collision', { ship: S.id, other: O.id, speed: Math.round(len(vRel)) });
+      resolveImpact(world, S, proxy, best.box, vRel, add(a, scale(sub(b, a), best.tf)));
+      if (S.alive && len(vRel) > 30 && S.mass < 30000) killShip(world, S, 'collision', { component: best.box.id, with: O.id, speed: Math.round(len(vRel)) });
+    }
+  }
 }
 
 /**

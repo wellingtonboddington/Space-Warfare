@@ -10,6 +10,9 @@ import { Voice } from './voice/voice.js';
 import { CabinAudio } from './audio/sfx.js';
 import { humanOptions, applyHumanOption } from './comms/playerIntents.js';
 import { annunciators } from './render/cockpit.js';
+import { Coach } from './ui/coach.js';
+import { CameraWall } from './app/cameraWall.js';
+import { MANUAL } from './ui/help.js';
 
 class App {
   constructor(root) {
@@ -60,9 +63,11 @@ class App {
       if (!go) { this.toMenu(); return; }
     }
     this.menu.hide();
+    g.session.ui = this.hud;
+    this.coach = new Coach(g);
     if (opts.mode === 'human') {
       this.ctrl = new HumanControl(g, this.gr.renderer.domElement, this.hud);
-      this.hud.setHelp('point + click a control to operate it · RMB: rotary back / CHECK THIS<br>click empty space: free look (Esc releases) · right-drag: look<br>SPACE lean · V visor · Z zoom · TAB talk · [ ] time · P pause · F1 debug');
+      this.hud.setHelp('point + click a control · hover = what it does · RMB: rotary back / CHECK THIS<br>wheel: zoom (to the cursor) · F: focus screen · click empty space: free look<br>C cameras · TAB talk · V visor · [ ] time · P pause · H manual');
     } else {
       const { AIView } = await import('./app/aiView.js');
       this.ctrl = new AIView(g, this.root, this.hud);
@@ -71,6 +76,8 @@ class App {
   }
 
   endGame() {
+    this.camWall?.dispose(); this.camWall = null;
+    this.coach?.dispose(); this.coach = null;
     this.ctrl?.dispose?.(); this.ctrl = null;
     this.game?.dispose(); this.game = null;
     this.hud?.dispose(); this.hud = null;
@@ -101,12 +108,16 @@ class App {
       const ship = g.ship, s = g.session;
       this.audio.update(annunciators(ship));
       this.hud.setTop(this._topLine());
+      if (this.coach && (this._coachT = (this._coachT ?? 0) + dt) > 0.25) { this._coachT = 0; this.hud.setCoach(this.coach.html()); }
+      if (g.mode === 'human') this.hud.setVisor(ship.pilotVisorClosed, ship.life?.suitSealed);
+      this.camWall?.update();
       const ph = s.playerPilot?.phys;
       if (g.mode === 'human') this.hud.setDim(ph ? (ph.alive ? (ph.conscious ? Math.max(0, (ph.g - 3) / 3) * 0.5 : 0.92) : 1) : 0);
       if (this.hud.chatOpen && (this._chatRefresh = (this._chatRefresh ?? 0) + dt) > 1) { this._chatRefresh = 0; this.hud.refreshChat(this._options()); }
       g.renderFeeds();
       if (g.mode === 'human') this.gr.render({ origin: ship.pos.slice(), camWorldPos: this.ctrl.camPos, camQuat: this.ctrl.camQuat, fov: this.gr.nearCam.fov, dt, cabinSun: g.cabinSun });
       else this.ctrl.render(dt);
+      this.camWall?.render();
       this.debug?.update?.(g);
       if (s.outcome && !g.ended) this._onOutcome();
     } catch (e) {
@@ -128,6 +139,10 @@ class App {
   _key(e) {
     const g = this.game;
     if (!g) return;
+    if (this.hud?.manualOpen) { if (e.code === 'Escape' || e.code === 'KeyH') { this.hud.closeManual(); e.preventDefault(); } return; }
+    if (e.code === 'KeyH' && !this.hud?.chatOpen) { this.openManual(); return; }
+    if (e.code === 'KeyC' && g.mode === 'human' && !this.hud?.chatOpen && !this.hud?.paused) { this.toggleCameras(); return; }
+    if (e.code === 'Escape' && this.camWall) { this.toggleCameras(); return; }
     if (this.hud?.chatOpen) {
       if (e.code === 'Escape' || e.code === 'Tab') { this.hud.closeChat(); e.preventDefault(); return; }
       const n = +e.key;
@@ -146,6 +161,16 @@ class App {
     if (e.code === 'F1' || e.code === 'Backquote') { e.preventDefault(); this.toggleDebug(); }
   }
 
+  openManual() { this.hud?.openManual(MANUAL, this.game?.mode === 'ai' ? 3 : 1); }
+
+  toggleCameras() {
+    if (this.camWall) { this.camWall.dispose(); this.camWall = null; this.hud?.el.classList.remove('walled'); return; }
+    if (document.pointerLockElement) document.exitPointerLock?.();
+    this.camWall = new CameraWall(this.game, this.root);
+    this.hud?.el.classList.add('walled');
+    this.hud?.setTip(null);
+  }
+
   togglePause() {
     const g = this.game;
     if (!g) return;
@@ -153,6 +178,7 @@ class App {
     g.paused = true;
     const items = [
       { label: 'RESUME', fn: () => this.togglePause() },
+      { label: 'FIELD MANUAL (H)', fn: () => { this.hud.closePause(); g.paused = false; this.openManual(); } },
       { label: 'END ENCOUNTER → DEBRIEF', fn: () => { this.hud.closePause(); g.paused = false; this._onOutcome(true); } },
       { label: 'QUIT TO MENU', fn: () => { this.hud.closePause(); this.toMenu(); } },
     ];
