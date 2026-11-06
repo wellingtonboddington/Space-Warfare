@@ -7,7 +7,7 @@ import { missionKill } from '../sim/scenario/objectives.js';
 import { afterAction } from '../roster/afterAction.js';
 
 const CSS = `
-#debrief{position:fixed;inset:0;overflow:auto;background:#030504;color:#d8e0d6;font-family:"Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;font-size:13px;line-height:1.5;padding:28px 16px;box-sizing:border-box;z-index:20}
+#debrief{position:fixed;inset:0;z-index:25;overflow:auto;background:#030504;color:#d8e0d6;font-family:"Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;font-size:13px;line-height:1.5;padding:28px 16px;box-sizing:border-box}
 #debrief .wrap{max-width:1040px;margin:0 auto}
 #debrief h1{font-size:26px;letter-spacing:.3em;margin:0 0 4px}
 #debrief h2{font-size:12px;letter-spacing:.22em;color:#ffb02e;margin:22px 0 8px;border-bottom:1px solid #2c3a30;padding-bottom:4px}

@@ -9,7 +9,8 @@
     "dev": "node tools/serve.mjs",
     "test": "node --test test/*.test.js",
     "batch": "node tools/sim_batch.mjs",
-    "smoke": "node tools/smoke.mjs"
+    "smoke": "node tools/uitest.mjs && node tools/smoke.mjs",
+    "uitest": "node tools/uitest.mjs"
   },
   "dependencies": {
     "three": "0.186.1"

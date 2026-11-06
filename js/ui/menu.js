@@ -2,7 +2,7 @@
 import { esc } from './hud.js';
 
 const CSS = `
-#menu{position:fixed;inset:0;overflow:auto;background:radial-gradient(ellipse at 70% 120%,#20231f 0%,#070807 55%,#000 100%);color:#d8e0d6;font-family:"Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;display:flex;align-items:center;justify-content:center;padding:24px 16px;box-sizing:border-box}
+#menu{position:fixed;inset:0;z-index:20;overflow:auto;background:radial-gradient(ellipse at 70% 120%,#20231f 0%,#070807 55%,#000 100%);color:#d8e0d6;font-family:"Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;display:flex;align-items:center;justify-content:center;padding:24px 16px;box-sizing:border-box}
 #menu .wrap{width:min(980px,100%)}
 #menu h1{font-size:44px;letter-spacing:.42em;margin:0 0 4px;font-weight:600;color:#e9ece4}
 #menu .sub{letter-spacing:.2em;font-size:12px;color:#8d9a8a;margin-bottom:26px}
@@ -64,7 +64,7 @@ export class Menu {
             <button class="go">BRIEFING ▸</button>
           </div>
           <div class="note">Every encounter is generated from the seed: orbits, sun and relay geometry, enemy order of battle and crews, faults, crew stress and trust. Nothing is scripted; the same seed replays the same world, but not the same decisions.<br>
-          Human seat: mouse look (click to capture) · LMB operate · RMB rotary back / CHECK THIS on a raw feed · SPACE lean · V visor · TAB talk · [ ] time · P pause · F1 AI debug.</div>
+          Pilot seat: point at a control and click it · click empty space for free look (Esc releases) · right-drag looks too · RMB: rotary back / CHECK THIS on a raw feed · SPACE lean · V visor · TAB talk · [ ] time · P pause · F1 AI debug.</div>
         </div>`;
         for (const c of this.el.querySelectorAll('[data-mode]')) c.onclick = () => { s.mode = c.dataset.mode; render(); };
         for (const c of this.el.querySelectorAll('[data-variant]')) c.onclick = () => { s.variant = c.dataset.variant; render(); };
@@ -87,12 +87,12 @@ export class Menu {
       const pilot = s.roster.get(e.crew.pilotId), ai = s.roster.get(e.crew.aiId);
       const rel = s.roster.relation(e.crew.pilotId, e.crew.aiId);
       const o = sc.objective ?? {};
-      const intel = (sc.intel ?? []).map((x) => `<li>${esc(typeof x === 'string' ? x : x.text ?? JSON.stringify(x))}</li>`).join('');
+      const intel = intelLines(sc.intel).map((x) => `<li>${esc(x)}</li>`).join('');
       const you = game.mode === 'human' ? `${pilotName(pilot)} (you)` : pilotName(pilot);
       const hist = (pilot?.history?.entries ?? []).slice(-3);
       this.el.innerHTML = `<div class="wrap"><div class="brief">
         <div style="letter-spacing:.3em;font-size:12px;color:#8d9a8a">BRIEFING · SEED ${sc.seed} · ${esc(e.faction)} · ${esc(e.name ?? e.callsign ?? '')}</div>
-        <h2>OBJECTIVE</h2><div>${esc(o.text ?? o.summary ?? describeObjective(o, game.opts.variant))}</div>
+        <h2>OBJECTIVE</h2><div>${esc(describeObjective(o, game.opts.variant))}</div>
         <h2>INTELLIGENCE</h2><ul style="margin:0;padding-left:18px">${intel || '<li>Nothing confirmed. Expect what the doctrine expects.</li>'}</ul>
         <h2>CREW</h2>
         <div><span class="k">PILOT</span> ${esc(you)}${pilot?.rank ? ` · ${esc(pilot.rank)}` : ''}${pilot?.serviceYears ? ` · ${pilot.serviceYears} yrs` : ''}</div>
@@ -112,9 +112,18 @@ export class Menu {
 
 function pilotName(p) { if (!p) return 'Pilot'; return `${p.name ?? ''} ${p.surname ?? ''}`.trim() + (p.nickname ? ` "${p.nickname}"` : ''); }
 function describeObjective(o, v) {
-  if (v === 'recon') return 'Classify the contacts in the patrol box to a confidence the fleet can act on, relay the track file, and come home.';
-  if (v === 'skirmisher') return 'Find and kill or disable the target element, then keep enough Δv to break off.';
-  return 'Keep the depot alive through the raid.';
+  const mins = o.endTime ? ` Window: about ${Math.round(o.endTime / 60)} minutes.` : '';
+  if (v === 'recon') return `Classify the contacts in the patrol box to at least ${Math.round((o.classifyThreshold ?? 0.8) * 100)}% confidence, get at least ${Math.round((o.minFraction ?? 0.66) * 100)}% of them right in the track file you relay home over a physical link, and survive.${mins}`;
+  if (v === 'skirmisher') return `Find and kill or disable the target element (${String(o.targetKey ?? 'the target').replace(/-\d+$/, '')}), then keep at least ${Math.round(o.reserveDv ?? 250)} m/s of Δv to break off.${mins}`;
+  return `Keep the depot alive through the raid: lose its control module or two of its tanks and the mission fails.${mins}`;
+}
+/** Scenario intel is {family: count | note} — turn it into briefing lines. */
+function intelLines(intel) {
+  if (!intel) return [];
+  if (Array.isArray(intel)) return intel.map((x) => (typeof x === 'string' ? x : x.text ?? ''));
+  if (typeof intel === 'string') return [intel];
+  const NAME = { interceptor: 'Interceptor', gunship: 'strike gunship', hauler: 'ice hauler', decoy: 'decoys', depot: 'depot', kkv: 'KKVs' };
+  return Object.entries(intel).map(([k, v]) => (typeof v === 'number' ? `${v} × ${NAME[k] ?? k} expected` : `${NAME[k] ?? k}: ${v}`));
 }
 function hash(s) { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0) % 1e6; }
 function loadPrefs() { try { return { mode: 'human', variant: 'recon', ...JSON.parse(localStorage.getItem('severance.prefs') ?? '{}') }; } catch { return { mode: 'human', variant: 'recon' }; } }

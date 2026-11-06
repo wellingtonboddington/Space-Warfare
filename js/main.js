@@ -26,7 +26,7 @@ class App {
   async boot() {
     this.menu.loading(0, 'renderer');
     this.view = document.createElement('div');
-    this.view.style.cssText = 'position:fixed;inset:0';
+    this.view.style.cssText = 'position:fixed;inset:0;z-index:0'; // the 3D view is the bottom layer; every UI layer sits above it
     this.root.appendChild(this.view);
     this.gr = new GameRenderer(this.view, { quality: this.quality });
     this.assets = new AssetLibrary(this.gr.renderer);
@@ -56,13 +56,13 @@ class App {
     const g = (this.game = new Game({ gr: this.gr, assets: this.assets, opts, ui: this.hud, voice: this.voice, audio: this.audio }));
     g.start();
     if (briefing) {
-      const go = await this.menu.briefing(g);
+      const go = await this.menu.briefing(g).catch((e) => { console.error('briefing', e); return true; });
       if (!go) { this.toMenu(); return; }
     }
     this.menu.hide();
     if (opts.mode === 'human') {
       this.ctrl = new HumanControl(g, this.gr.renderer.domElement, this.hud);
-      this.hud.setHelp('click: capture mouse · LMB operate · RMB back / CHECK THIS<br>SPACE lean · V visor · Z zoom · TAB talk<br>[ ] time · P pause · F1 AI debug');
+      this.hud.setHelp('point + click a control to operate it · RMB: rotary back / CHECK THIS<br>click empty space: free look (Esc releases) · right-drag: look<br>SPACE lean · V visor · Z zoom · TAB talk · [ ] time · P pause · F1 debug');
     } else {
       const { AIView } = await import('./app/aiView.js');
       this.ctrl = new AIView(g, this.root, this.hud);
@@ -208,6 +208,15 @@ function defaultQuality() {
   try { const q = JSON.parse(localStorage.getItem('severance.prefs') ?? '{}').quality; if (q) return q; } catch { /* */ }
   return 'medium';
 }
+
+// Never fail silently: any uncaught error is shown on screen (and in the console).
+function showError(msg) {
+  let box = document.getElementById('sev-error');
+  if (!box) { box = document.createElement('div'); box.id = 'sev-error'; box.style.cssText = 'position:fixed;left:12px;bottom:12px;max-width:min(720px,92vw);z-index:99;background:#2a0b08;color:#ffb3a8;border:1px solid #ff6a50;padding:8px 12px;font:12px/1.4 monospace;white-space:pre-wrap;pointer-events:auto'; document.body.appendChild(box); box.onclick = () => box.remove(); }
+  box.textContent = `Something broke — please report this (click to dismiss):\n${msg}`;
+}
+window.addEventListener('error', (e) => showError(e.error?.stack ?? e.message));
+window.addEventListener('unhandledrejection', (e) => showError(e.reason?.stack ?? String(e.reason)));
 
 const app = new App(document.getElementById('app'));
 app.autostart = /autostart/.test(location.hash);

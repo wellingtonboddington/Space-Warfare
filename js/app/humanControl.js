@@ -26,19 +26,21 @@ export class HumanControl {
     this.camQuat = new THREE.Quaternion();
     this.handlers = [];
     const on = (el, ev, fn, o) => { el.addEventListener(ev, fn, o); this.handlers.push(() => el.removeEventListener(ev, fn, o)); };
-    on(canvas, 'click', () => { if (!this.locked && !ui.modalOpen()) canvas.requestPointerLock?.(); });
     on(document, 'pointerlockchange', () => { this.locked = document.pointerLockElement === canvas; ui.setLocked?.(this.locked); });
     on(document, 'mousemove', (e) => {
       if (this.locked) this._look(e.movementX, e.movementY);
       else if (this.drag) { this._look(e.clientX - this.drag.x, e.clientY - this.drag.y); this.drag = { x: e.clientX, y: e.clientY }; }
       this.mouse = { x: e.clientX, y: e.clientY };
     });
+    // Works with or without mouse capture: when the pointer is free, you point at a control with
+    // the cursor and click it; clicking empty space captures the mouse for free look (Esc releases).
     on(canvas, 'mousedown', (e) => {
       if (ui.modalOpen()) return;
-      if (!this.locked && e.button === 2) { this.drag = { x: e.clientX, y: e.clientY }; return; }
-      if (!this.locked) return;
-      if (e.button === 0) this.activate(+1);
-      if (e.button === 2) this.activate(-1);
+      if (!this.locked) this.mouse = { x: e.clientX, y: e.clientY };
+      this._pickNow();
+      if (this.locked) { if (e.button === 0) this.activate(+1); else if (e.button === 2) this.activate(-1); return; }
+      if (e.button === 0) { if (this.hover) this.activate(+1); else this._lock(); }
+      else if (e.button === 2) { if (this.hover) this.activate(-1); else this.drag = { x: e.clientX, y: e.clientY }; }
     });
     on(document, 'mouseup', () => { this.drag = null; });
     on(canvas, 'contextmenu', (e) => e.preventDefault());
@@ -50,6 +52,20 @@ export class HumanControl {
       if (e.code === 'KeyZ') this.zoom = !this.zoom;
     });
     on(document, 'keyup', (e) => { if (e.code === 'Space' || e.code === 'ShiftLeft') this.leanWant = 0; });
+  }
+
+  _lock() {
+    try { const p = this.canvas.requestPointerLock?.(); p?.catch?.(() => this.ui.toast?.('Mouse capture unavailable — right-drag to look, click controls directly')); }
+    catch { this.ui.toast?.('Mouse capture unavailable — right-drag to look, click controls directly'); }
+  }
+
+  /** Re-pick under the cursor/reticle immediately (a click must act on what is under it now). */
+  _pickNow() {
+    const cam = this.g.gr.nearCam;
+    const ndc = this.locked || !this.mouse ? new THREE.Vector2(0, 0) : new THREE.Vector2((this.mouse.x / innerWidth) * 2 - 1, -(this.mouse.y / innerHeight) * 2 + 1);
+    this.ray.setFromCamera(ndc, cam);
+    const hit = this.g.cockpit.pick(this.ray);
+    this.hover = hit && (hit.screenId || hit.distance < REACH_M) ? hit : null;
   }
 
   dispose() { for (const h of this.handlers) h(); if (document.pointerLockElement === this.canvas) document.exitPointerLock?.(); }
@@ -90,7 +106,7 @@ export class HumanControl {
     const h = inReach ? hit : null;
     cp.setHover(h?.controlId ? h : null);
     this.hover = h;
-    this.ui.setHover?.(h ? this._hoverText(h) : null);
+    this.ui.setHover?.(h ? this._hoverText(h) : null, this.locked ? null : this.mouse ?? null);
   }
 
   _hoverText(h) {

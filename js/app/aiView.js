@@ -20,7 +20,7 @@ import { esc } from '../ui/hud.js';
 const AMBER = '#ffb02e', CYAN = '#7fd6e8', DIM = '#5d6a66', WARN = '#ff4a36', OK = '#7fe08a', TXT = '#cfd9d4';
 
 const CSS = `
-#aiv{position:fixed;inset:0;pointer-events:none;font-family:"Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;color:${TXT}}
+#aiv{position:fixed;inset:0;z-index:6;pointer-events:none;font-family:"Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;color:${TXT}}
 #aiv canvas.ov{position:absolute;inset:0;width:100%;height:100%}
 #aiv .con{position:absolute;right:0;top:0;bottom:0;width:30%;min-width:300px;overflow:auto;background:rgba(3,6,6,.92);border-left:1px solid #1f2b2a;pointer-events:auto;font-size:12px}
 #aiv .con h4{margin:0;padding:6px 10px;font-size:10px;letter-spacing:.2em;color:${DIM};border-top:1px solid #1a2423;display:flex;justify-content:space-between}
@@ -47,6 +47,20 @@ export class AIView {
     this.ov = document.createElement('canvas'); this.ov.className = 'ov';
     this.con = document.createElement('div'); this.con.className = 'con';
     this.el.append(this.ov, this.con);
+    // Console input is delegated and acts on pointer-down: the console re-renders twice a second
+    // and a click must never be lost to a re-render.
+    this.con.addEventListener('pointerdown', (e) => {
+      const el = e.target.closest('[data-c],[data-f],[data-a]');
+      if (!el) return;
+      e.preventDefault();
+      const ag = this.agent, t = this.s.t;
+      if (el.dataset.c) this.execManeuver(this.cands.find((x) => x.key === el.dataset.c));
+      else if (el.dataset.f) { const o = ag.fireOptions(t).find((x) => x.key === el.dataset.f); if (o) { ag.executeFire(o, t); this.hud.toast(ag.authorised('kkv', o.key, t).ok ? `FIRING: ${o.label}` : `REQUESTED: ${o.label}`); } else this.hud.toast('That firing solution has gone'); }
+      else if (el.dataset.a) this.action(el.dataset.a);
+      this.consoleT = 0; // show the result right away
+    });
+    this.con.addEventListener('mouseover', (e) => { const el = e.target.closest('[data-c]'); this.preview = el ? this.cands.find((x) => x.key === el.dataset.c) ?? null : null; });
+    this.con.addEventListener('mouseleave', () => { this.preview = null; });
     root.appendChild(this.el);
     this.og = this.ov.getContext('2d');
     this.hud.showReticle(false);
@@ -271,14 +285,7 @@ export class AIView {
       DIAL <b style="color:${AMBER}">${['CONFIRM ALL', 'CONFIRM WPNS', 'CONFIRM LETHAL', 'WPNS FREE', 'AUTONOMOUS'][dial]}</b><br>
       ${v ? `${v.conscious ? '' : '<b style="color:#ff4a36">UNRESPONSIVE</b> · '}HR ${v.hr.toFixed(0)} · RR ${v.rr.toFixed(0)} · SpO₂ ${(v.spo2 * 100).toFixed(0)}% · g ${v.g.toFixed(1)}<br>` : ''}
       complied ${acks.length}${lat != null ? ` (mean ${lat.toFixed(1)} s)` : ''} · refused ${refs.length}${v?.task ? `<br>doing: ${esc(v.task)}` : ''}</div>`;
-    this.con.innerHTML = h;
-    for (const el of this.con.querySelectorAll('[data-c]')) {
-      const c = this.cands.find((x) => x.key === el.dataset.c);
-      el.onmouseenter = () => { this.preview = c; }; el.onmouseleave = () => { this.preview = null; };
-      el.onclick = () => this.execManeuver(c);
-    }
-    for (const el of this.con.querySelectorAll('[data-f]')) el.onclick = () => { const o = ag.fireOptions(this.s.t).find((x) => x.key === el.dataset.f); if (o) { ag.executeFire(o, this.s.t); this.hud.toast(ag.authorised('kkv', o.key, this.s.t).ok ? `FIRING: ${o.label}` : `REQUESTED: ${o.label}`); } };
-    for (const el of this.con.querySelectorAll('[data-a]')) el.onclick = () => this.action(el.dataset.a);
+    if (h !== this._conHTML) { const st = this.con.scrollTop; this.con.innerHTML = h; this.con.scrollTop = st; this._conHTML = h; }
   }
 
   execManeuver(c) {

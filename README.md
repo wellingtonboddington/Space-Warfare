@@ -30,9 +30,9 @@ pilot's stress and trust history. Nothing is scripted.
 
 | input | action |
 |---|---|
-| click | capture the mouse |
-| mouse | look around the cockpit |
-| LMB | operate the control under the reticle (your simulated body reaches for it) |
+| point + LMB | operate the control under the cursor (your simulated body reaches for it) |
+| click empty space | capture the mouse for free look; the reticle then picks controls (Esc releases) |
+| right-drag | look around without capturing the mouse |
 | RMB | turn a rotary back, or **CHECK THIS** on a raw IR/telescope/optical page (the AI integrates there for longer and confirms or rejects) |
 | SPACE | lean in |
 | Z | zoom |

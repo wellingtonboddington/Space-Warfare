@@ -3,7 +3,7 @@
 // the cockpit's own screens carry the information; this layer carries words and choices.
 
 const CSS = `
-#hud{position:fixed;inset:0;pointer-events:none;font-family:"Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;color:#d8e0d6}
+#hud{position:fixed;inset:0;z-index:5;pointer-events:none;font-family:"Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,monospace;color:#d8e0d6}
 #hud .ret{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border:1px solid rgba(220,230,220,.55);border-radius:50%}
 #hud .ret.on{border-color:#ffd27a;box-shadow:0 0 6px #ffb02e}
 #hud .hover{position:absolute;left:50%;top:calc(50% + 14px);transform:translateX(-50%);font-size:12px;letter-spacing:.06em;color:#e8e2c8;text-shadow:0 0 3px #000,0 0 6px #000;white-space:nowrap}
@@ -17,7 +17,7 @@ const CSS = `
 #hud .toast{position:absolute;left:50%;top:12%;transform:translateX(-50%);background:rgba(0,0,0,.7);padding:5px 12px;font-size:13px;letter-spacing:.08em;border-left:2px solid #ffb02e;transition:opacity .5s}
 #hud .top{position:absolute;left:12px;top:10px;font-size:12px;letter-spacing:.06em;opacity:.8;text-shadow:0 0 3px #000}
 #hud .help{position:absolute;right:12px;top:10px;font-size:11px;line-height:1.5;opacity:.6;text-align:right;text-shadow:0 0 3px #000}
-#chat{position:fixed;right:16px;bottom:16px;width:min(440px,94vw);max-height:62vh;overflow:auto;background:rgba(6,8,7,.9);border:1px solid #2c3a30;pointer-events:auto;font-family:inherit;font-size:14px;display:none}
+#chat{z-index:15;position:fixed;right:16px;bottom:16px;width:min(440px,94vw);max-height:62vh;overflow:auto;background:rgba(6,8,7,.9);border:1px solid #2c3a30;pointer-events:auto;font-family:inherit;font-size:14px;display:none}
 #chat.open{display:block}
 #chat h3{margin:0;padding:8px 10px;font-size:11px;letter-spacing:.16em;color:#9fb59a;border-bottom:1px solid #2c3a30;display:flex;justify-content:space-between}
 #chat .opt{padding:7px 10px;cursor:pointer;border-bottom:1px solid #141a16;display:flex;gap:10px}
@@ -27,7 +27,7 @@ const CSS = `
 #chat .fr{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid #2c3a30}
 #chat .fr button{flex:1;background:#101611;color:#bcd0b6;border:1px solid #2c3a30;padding:4px;font:inherit;font-size:12px;cursor:pointer}
 #chat .fr button.on{background:#3a2c10;color:#ffd27a;border-color:#ffb02e}
-#pause{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;pointer-events:auto;font-family:inherit}
+#pause{z-index:16;position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;pointer-events:auto;font-family:inherit}
 #pause.open{display:flex}
 #pause .box{background:#0b0f0c;border:1px solid #2c3a30;padding:22px 28px;min-width:320px;color:#d8e0d6}
 #pause button{display:block;width:100%;margin:8px 0;background:#132017;color:#d8e0d6;border:1px solid #2f4234;padding:8px;font:inherit;cursor:pointer}
@@ -44,6 +44,16 @@ export class Hud {
     this.el.innerHTML = `<div class="dim"></div><div class="ret"></div><div class="hover"></div><div class="subs"></div><div class="top"></div><div class="help"></div>`;
     root.appendChild(this.el);
     this.chat = document.createElement('div'); this.chat.id = 'chat'; root.appendChild(this.chat);
+    // Input is handled on the container at pointer-down, so a refresh of the list can never eat a
+    // click, and the list does not reshuffle while the pointer is over it.
+    this.chat.addEventListener('pointerdown', (e) => {
+      const fr = e.target.closest('[data-fr]');
+      if (fr) { e.preventDefault(); this.framing = fr.dataset.fr; this._renderChat(); return; }
+      const opt = e.target.closest('.opt');
+      if (opt) { e.preventDefault(); this.pick(+opt.dataset.i); }
+    });
+    this.chat.addEventListener('pointerenter', () => { this.chatHover = true; });
+    this.chat.addEventListener('pointerleave', () => { this.chatHover = false; });
     this.pauseEl = document.createElement('div'); this.pauseEl.id = 'pause'; root.appendChild(this.pauseEl);
     this.$ = (s) => this.el.querySelector(s);
     this.subs = new Map();
@@ -61,9 +71,12 @@ export class Hud {
   setDim(v) { this.$('.dim').style.opacity = String(v); }
   showReticle(v) { this.$('.ret').style.display = v ? '' : 'none'; }
 
-  setHover(text) {
+  /** pos: cursor position when the mouse is free (caption follows it); null = at the reticle. */
+  setHover(text, pos = null) {
     const h = this.$('.hover');
     if ((text ?? '') !== h.textContent) h.textContent = text ?? '';
+    if (pos) { h.style.left = `${pos.x}px`; h.style.top = `${pos.y + 18}px`; }
+    else { h.style.left = ''; h.style.top = ''; }
     this.$('.ret').classList.toggle('on', !!text);
   }
 
@@ -110,15 +123,14 @@ export class Hud {
     if (document.pointerLockElement) document.exitPointerLock?.();
   }
 
-  refreshChat(options) { if (!this.chatOpen) return; this.options = options.slice(0, 12); this._renderChat(); }
+  refreshChat(options) { if (!this.chatOpen || this.chatHover) return; this.options = options.slice(0, 12); this._renderChat(); }
 
-  closeChat() { this.chatOpen = false; this.chat.classList.remove('open'); }
+  closeChat() { this.chatOpen = false; this.chatHover = false; this.chat.classList.remove('open'); }
 
   _renderChat() {
     const fr = this.withFraming ? `<div class="fr">${['calm', 'urgent', 'blunt', 'detailed'].map((k) => `<button data-fr="${k}" class="${this.framing === k ? 'on' : ''}">${k.toUpperCase()}</button>`).join('')}</div>` : '';
-    this.chat.innerHTML = `<h3><span>${this.chatTitle}</span><span>1–9 · ESC</span></h3>${fr}` + this.options.map((o, i) => `<div class="opt ${o.group ?? ''}" data-i="${i}"><span class="k">${i < 9 ? i + 1 : ''}</span><span>${esc(o.label)}</span></div>`).join('');
-    for (const b of this.chat.querySelectorAll('[data-fr]')) b.onclick = () => { this.framing = b.dataset.fr; this._renderChat(); };
-    for (const d of this.chat.querySelectorAll('.opt')) d.onclick = () => this.pick(+d.dataset.i);
+    const html = `<h3><span>${this.chatTitle}</span><span>1–9 · ESC</span></h3>${fr}` + this.options.map((o, i) => `<div class="opt ${o.group ?? ''}" data-i="${i}"><span class="k">${i < 9 ? i + 1 : ''}</span><span>${esc(o.label)}</span></div>`).join('');
+    if (html !== this._chatHTML) { this.chat.innerHTML = html; this._chatHTML = html; }
   }
 
   pick(i) {
