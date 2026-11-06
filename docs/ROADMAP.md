@@ -18,6 +18,9 @@ rather than rewrite. The owner's addenda (`ADDENDA.md`) are the source for every
 | War State Ledger | Write-only `WarStateLedger.record(outcome)` | `js/roster/warLedger.js` |
 | Search & Rescue | The sensor, tracker and classifier pipeline already finds wrecks and debris. Pass 2 adds a `rescue` objective evaluator. | `js/sim/scenario/objectives.js` |
 | NPC dialogue about reputation | Generative grammar plus intents; new slot content only | `js/comms/*` |
+| After-action consequences | `afterAction(session)` writes every crew's sortie, deaths and injuries, the pilot↔AI relationship's Beta trust, and the AI's long-run calibration into the Roster, then records the ledger entry | `js/roster/afterAction.js` |
+| AI calibration as a persistent trait | The claims registry, Brier score and self-calibration shrinkage; `AIEntity.calibration` accumulates across sorties | `js/ai/claims.js`, `js/comms/engine.js` |
+| Seat-agnostic actions | `ShipAgent.fireOptions/executeFire`, `authorised/request/resolveRequest`; the AI-POV console drives the same calls as the utility AI | `js/ai/ship/shipAgent.js`, `js/app/aiView.js` |
 
 ## Pass 2 (Campaign 1)
 - Campaign of linked encounters for a bounded Task Force (16–32 hulls, 3–6 squadrons) with faction-asymmetric
@@ -31,3 +34,15 @@ rather than rewrite. The owner's addenda (`ADDENDA.md`) are the source for every
 
 ## Pass 3
 - Deeper S&R and POW interaction, richer cooperation utilities among squadmates, later campaigns reading the ledger.
+
+## Pass 1 re-pass candidates (known weaknesses, measured)
+- **Track identity.** Salvo KKVs launched together share one track until they separate, and a
+  hauler and its escort can swap identities. Fixing this (multi-hypothesis association, or radar
+  range resolution splitting close pairs) would improve classification stability.
+- **Δv budgeting.** Repeated evasive burns can spend the last reserve in some Recon and Picket runs.
+- **Picket balance.** This variant is the hardest. Raids mix decoys and salvos, and detecting
+  coasting KKVs is the bottleneck.
+- **Assets.** Better gloves for the pilot (mittens with a thumb today), a likeness pass on the
+  head, more capsule panelling, and wrinkle ridges and rilles on the Moon (see `blender/README.md`).
+- **Performance.** On integrated GPUs, use the Low preset if interior feeds and shadows stall. A
+  startup benchmark could pick the preset automatically.

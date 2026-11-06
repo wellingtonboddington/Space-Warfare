@@ -1,6 +1,8 @@
-// Playwright smoke test: opens the built index.html over file:// in the pre-installed Chromium,
-// optionally drives the game through every mode x variant, fails on console errors, saves screenshots.
-// Usage: node tools/smoke.mjs [--quick] [--out screenshots] [--only human:recon]
+// Playwright smoke test: opens the built index.html over file:// in the pre-installed Chromium and
+// drives the REAL game through every mode × variant (via the window.__severance hook), fast-
+// forwarding the simulation, rendering frames deterministically (software GPUs are slow), and
+// exercising the debrief. Fails on any console error. Saves screenshots for review.
+// Usage: node tools/smoke.mjs [--quick] [--out screenshots] [--only human:recon] [--seconds 120]
 import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,41 +16,49 @@ try { playwright = require('playwright'); } catch { playwright = require('/opt/n
 const args = process.argv.slice(2);
 const outDir = join(ROOT, args.includes('--out') ? args[args.indexOf('--out') + 1] : 'screenshots');
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
-const simSeconds = args.includes('--seconds') ? +args[args.indexOf('--seconds') + 1] : 20;
+const simSeconds = args.includes('--seconds') ? +args[args.indexOf('--seconds') + 1] : 120;
 mkdirSync(outDir, { recursive: true });
 
 const browser = await playwright.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
-page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); else if (args.includes('--verbose')) console.log('[page]', m.text()); });
+const IGNORE = [/GL_INVALID|WebGL: too many errors|GPU stall/i]; // software-GL noise, not game errors
+page.on('console', (m) => { if (m.type() === 'error' && !IGNORE.some((r) => r.test(m.text()))) errors.push(m.text()); else if (args.includes('--verbose')) console.log('[page]', m.text()); });
 page.on('pageerror', (e) => errors.push(String(e.stack || e)));
 await page.goto(pathToFileURL(join(ROOT, 'index.html')).href);
-await page.waitForTimeout(2500);
-await page.screenshot({ path: join(outDir, 'boot.png') });
+await page.waitForFunction(() => typeof window.__severance === 'object', null, { timeout: 120000 });
+await page.waitForTimeout(800);
+await page.screenshot({ path: join(outDir, 'menu.png') });
 
-// The game exposes a test hook (window.__severance) once booted.
-const hasHook = await page.evaluate(() => typeof window.__severance === 'object');
-if (hasHook && !args.includes('--quick')) {
-  const combos = [];
-  for (const mode of ['human', 'ai']) for (const variant of ['recon', 'skirmisher', 'picket']) combos.push([mode, variant]);
-  for (const [mode, variant] of combos) {
+const results = [];
+if (!args.includes('--quick')) {
+  await page.evaluate(() => window.__severance.freeze(true));
+  for (const mode of ['human', 'ai']) for (const variant of ['recon', 'skirmisher', 'picket']) {
     if (only && only !== `${mode}:${variant}`) continue;
-    console.log(`→ ${mode} / ${variant}`);
-    await page.evaluate(([m, v]) => window.__severance.start({ mode: m, variant: v, seed: 12345 }), [mode, variant]);
-    await page.waitForTimeout(3000);
-    await page.screenshot({ path: join(outDir, `${mode}_${variant}_start.png`) });
+    const t0 = Date.now();
+    await page.evaluate(([m, v]) => window.__severance.start({ mode: m, variant: v, seed: 12345, quality: 'low' }), [mode, variant]);
+    await page.evaluate(() => window.__severance.frame(4));
+    await page.screenshot({ path: join(outDir, `${mode}_${variant}_start.png`), timeout: 120000 });
     await page.evaluate((s) => window.__severance.fastForward(s), simSeconds);
-    await page.waitForTimeout(1500);
-    await page.screenshot({ path: join(outDir, `${mode}_${variant}_t${simSeconds}.png`) });
+    await page.evaluate(() => window.__severance.frame(6));
+    await page.screenshot({ path: join(outDir, `${mode}_${variant}_t${simSeconds}.png`), timeout: 120000 });
     const status = await page.evaluate(() => window.__severance.status());
-    console.log('   status:', JSON.stringify(status));
-    await page.evaluate(() => window.__severance.toMenu());
-    await page.waitForTimeout(500);
+    // debrief path
+    await page.evaluate(() => { window.__severance.eval((a) => { a._onOutcome(true); }); }); // don't await: the debrief waits for a click
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: join(outDir, `${mode}_${variant}_debrief.png`), timeout: 120000 });
+    const hasDebrief = await page.evaluate(() => !!document.getElementById('debrief'));
+    await page.evaluate(() => { document.getElementById('debrief')?.querySelector('[data-menu]')?.click(); });
+    await page.waitForTimeout(400);
+    results.push({ mode, variant, status, hasDebrief, secs: ((Date.now() - t0) / 1000).toFixed(0) });
+    console.log(`→ ${mode}/${variant}: ${JSON.stringify(status)} debrief=${hasDebrief} (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   }
 }
 await browser.close();
-if (errors.length) {
-  console.error(`✗ ${errors.length} console error(s):\n` + errors.slice(0, 20).join('\n'));
+const bad = results.filter((r) => !r.status || !r.hasDebrief);
+if (errors.length || bad.length) {
+  if (errors.length) console.error(`✗ ${errors.length} console error(s):\n` + errors.slice(0, 20).join('\n'));
+  if (bad.length) console.error('✗ failed combos:', JSON.stringify(bad));
   process.exit(1);
 }
 console.log('✓ smoke passed; screenshots in', outDir);

@@ -187,7 +187,9 @@ export class ShipAgent {
         { name: 'stealth', value: (c.dv ? m.burnT : 0) * (1 - mind.selfExposure), curve: Curves.falling(0, 25), weight: stealthW },
         // A burn must buy something real versus simply coasting on the current plan.
         { name: 'improvement', value: c.dv ? m.pSurvive * (0.5 + m.obj.value) - coast.pSurvive * (0.5 + coast.obj.value) : 0.03, curve: Curves.rising(0.0, 0.15), weight: c.dv ? 0.9 : 0.5 },
-        { name: 'burn spacing', value: c.dv ? t - this.lastBurnT : 999, curve: c.kind === 'evade' ? () => 1 : Curves.rising(8, 40), weight: 0.9 },
+        { name: 'burn spacing', value: c.dv ? t - this.lastBurnT : 999, curve: c.kind === 'evade' ? Curves.floor(Curves.rising(2, 10), 0.25) : Curves.rising(8, 40), weight: 0.9 },
+        // Dry tanks end every future option, evasion included: never burn the last of it lightly
+        { name: 'dry tanks', value: c.dv ? ship.deltaVRemaining() - len(c.dv) : 9999, curve: Curves.floor(Curves.rising(30, 160), 0.02), weight: 1 },
       ];
       return { key: c.key, label: c.label, considerations: cons, base: ordered ? 1.7 : forbidden ? 0.35 : 1, data: { c, m }, minHold: 4 };
     });
@@ -313,8 +315,8 @@ export class ShipAgent {
     // Volume search: no track needed. A picket expecting a raid (or anyone who just saw a launch
     // flare) wants cold, coasting KKVs found while there is still time to shoot them.
     const recentLaunch = t - (mind.lastLaunchT ?? -1e9) < 300;
-    const searchNeed = (this.mission.role === 'picket' ? 0.55 : 0.15) + (recentLaunch ? 0.45 : 0) + (list.length === 0 ? 0.1 : 0);
-    options.push({ key: 'search', label: 'radar volume search', considerations: [
+    const searchNeed = (this.mission.role === 'picket' ? 0.55 : 0) + (recentLaunch ? 0.45 : 0);
+    if (searchNeed > 0) options.push({ key: 'search', label: 'radar volume search', considerations: [
       { name: 'value of information', value: searchNeed, curve: Curves.rising(0.1, 0.8) },
       { name: 'exposure', value: stealthW * (1 - mind.selfExposure) + (emcon ? 1 : 0), curve: Curves.falling(0.1, 1.0), weight: 0.95 },
     ], data: { mode: 'search' } });
