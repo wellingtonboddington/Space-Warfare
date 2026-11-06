@@ -124,10 +124,12 @@ The AI-POV console lists the same candidates for the player, and Pass 2 can hand
   digs them out.
 - **Classifier swaps.** The classifier can swap identities between close pairs, such as a hauler
   and its escort. The track features then mix and the family flips.
-- **Batch balance** (8 seeds each, after the Pass 1 fixes):
-  - Recon mostly succeeds (often compromised).
-  - Skirmisher succeeds about 4 times in 6.
-  - Picket is the hardest and is varied: the depot survives some raids, and the picket ship is
-    often lost.
-- **Δv budget.** Some Recon and Picket runs spend all their Δv on repeated evasive burns. The
-  mission-budget consideration needs a stronger reserve under repeated threats.
+- **Batch balance.** Final Pass 1 run: `node tools/sim_batch.mjs --variant all --n 8`, seeds 1–8,
+  every seat an agent.
+  - Recon: 6 succeeded (all compromised) and 2 failed, the failures from incomplete track files.
+  - Skirmisher: 3 succeeded and 5 failed (target survived: misses, escort PD, decoys).
+  - Picket: the depot survived 4 of 8 raids (1 resolved success, plus 3 still holding at the
+    2,000 s batch cap) and was lost in 4.
+  - Outcomes vary by seed, as they should. Nothing is rigged to win or lose.
+- **Δv budget.** A "dry tanks" consideration now protects the last reserve, evasion included.
+  One Picket run in eight still emptied its tanks under sustained raids.
