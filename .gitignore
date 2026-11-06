@@ -1,0 +1,8 @@
+node_modules/
+/tmp/
+*.blend1
+__pycache__/
+/test-output/
+/screenshots/
+.DS_Store
+.claude/
