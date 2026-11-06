@@ -146,7 +146,7 @@ export class Game {
   /** Advance the sim by real dt (respecting pause and compression). Returns steps taken. */
   stepSim(dtReal) {
     if (this.session.comms) this.session.comms.compression = this.paused ? 1 : this.timeScale;
-    if (this.paused || this.ended) return 0;
+    if (this.paused || (this.ended && !this.deathSequence)) return 0; // the world keeps going during the death sequence
     this.acc += Math.min(0.25, dtReal) * this.timeScale;
     let n = 0;
     const maxSteps = 30 * 32 / 8; // budget per frame; compression degrades gracefully if the CPU can't keep up

@@ -51,6 +51,7 @@ export class AIView {
     // Console input is delegated and acts on pointer-down: the console re-renders twice a second
     // and a click must never be lost to a re-render.
     this.con.addEventListener('pointerdown', (e) => {
+      if (this.death) return;
       const el = e.target.closest('[data-c],[data-f],[data-a]');
       if (!el) return;
       e.preventDefault();
@@ -193,11 +194,14 @@ export class AIView {
 
   _tileMat(tex, { mono = false, gain = 1, noise = 0.02 } = {}) {
     return new THREE.ShaderMaterial({
-      uniforms: { uTex: { value: tex }, uMono: { value: mono ? 1 : 0 }, uGain: { value: gain }, uNoise: { value: noise }, uTime: { value: 0 } },
+      uniforms: { uTex: { value: tex }, uMono: { value: mono ? 1 : 0 }, uGain: { value: gain }, uNoise: { value: noise }, uTime: { value: 0 }, uTint: { value: new THREE.Vector3(1, 1, 1) }, uBleed: { value: 0 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: `uniform sampler2D uTex; uniform float uMono; uniform float uGain; uniform float uNoise; uniform float uTime; varying vec2 vUv;
+      fragmentShader: `uniform sampler2D uTex; uniform float uMono; uniform float uGain; uniform float uNoise; uniform float uTime; uniform vec3 uTint; uniform float uBleed; varying vec2 vUv;
         float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
-        void main(){ vec3 c = texture2D(uTex, vUv).rgb * uGain; if (uMono > 0.5) { float l = dot(c, vec3(0.3,0.59,0.11)); c = vec3(l*0.85, l, l*0.95); }
+        void main(){
+          vec3 c = vec3(texture2D(uTex, vUv + vec2(uBleed, 0.0)).r, texture2D(uTex, vUv).g, texture2D(uTex, vUv - vec2(uBleed, uBleed * 0.5)).b) * uGain;
+          if (uMono > 0.5) { float l = dot(c, vec3(0.3,0.59,0.11)); c = mix(vec3(l*0.85, l, l*0.95), c, clamp(uBleed * 40.0, 0.0, 1.0)); }
+          c *= uTint;
           c += (h(vUv * 512.0 + uTime) - 0.5) * uNoise; gl_FragColor = vec4(max(c, 0.0), 1.0);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
@@ -401,19 +405,29 @@ export class AIView {
     // fusion space
     const m = L.main;
     this.tacCam.aspect = m.w / m.h; this.tacCam.updateProjectionMatrix();
-    r.setViewport(m.x, L.H - m.h, m.w, m.h); r.setScissor(m.x, L.H - m.h, m.w, m.h); r.setScissorTest(true);
-    r.render(this.tacScene, this.tacCam);
-    r.setScissorTest(false);
+    const fusionDeath = this._deathState('fusion');
+    if (!fusionDeath || fusionDeath.mode === 'erupt') {
+      r.setViewport(m.x, L.H - m.h, m.w, m.h); r.setScissor(m.x, L.H - m.h, m.w, m.h); r.setScissorTest(true);
+      r.render(this.tacScene, this.tacCam);
+      r.setScissorTest(false);
+    }
     // feed tiles via the compositor (pixel-space ortho camera)
     const tiles = this._tileRects(L);
     this.compCam.left = 0; this.compCam.right = L.W; this.compCam.top = L.H; this.compCam.bottom = 0; this.compCam.updateProjectionMatrix();
     for (const m2 of this.tileMeshes.values()) m2.visible = false;
-    for (const tl of tiles) {
+    // during the death sequence the fusion view goes to static through a tile of its own
+    const drawn = fusionDeath?.mode === 'static' ? [...tiles, { id: 'fusion', x: m.x, y: m.y, w: m.w, h: m.h, tex: this.raw.ir.tex, opt: { gain: 0, noise: 0 } }] : tiles;
+    for (const tl of drawn) {
       const tex = tl.tex;
       if (!tex) continue;
       const mesh = this._tile(tl.id, tex, tl.opt);
       mesh.visible = true;
-      mesh.material.uniforms.uTime.value = performance.now() % 1000;
+      const u = mesh.material.uniforms;
+      u.uTime.value = performance.now() % 1000;
+      const d = this._deathState(tl.id);
+      if (d) {
+        u.uGain.value = d.gain; u.uNoise.value = d.noise; u.uBleed.value = d.bleed; u.uTint.value.set(...d.tint);
+      } else { u.uGain.value = tl.opt?.gain ?? 1; u.uNoise.value = tl.opt?.noise ?? 0.02; u.uBleed.value = 0; u.uTint.value.set(1, 1, 1); }
       mesh.position.set(tl.x + tl.w / 2, L.H - (tl.y + tl.h / 2), 0);
       mesh.scale.set(tl.w, tl.h, 1);
     }
@@ -443,19 +457,49 @@ export class AIView {
     return out;
   }
 
+  /**
+   * Death sequence state for one feed (null when no sequence is running). Cabin feeds erupt first,
+   * then every feed cuts out in `death.order`: ~0.15 s of static, then black.
+   */
+  _deathState(id) {
+    const d = this.death;
+    if (!d) return null;
+    const el = d.el ?? 0; // seconds into the sequence (driven by DeathSequence)
+    const k = d.order.indexOf(id);
+    const cut = k < 0 ? Infinity : d.cutStart + k * d.gap;
+    if (el >= cut + 0.15) return { mode: 'black', gain: 0, noise: 0, bleed: 0, tint: [1, 1, 1] };
+    if (el >= cut) return { mode: 'static', gain: 0, noise: 1.4, bleed: 0, tint: [1, 1, 1] };
+    if (/^CAM_(PILOT|WIDE|LEFT|RIGHT)$/.test(id) && el < d.cutStart) {
+      const f = Math.max(0, 1 - el / 0.35);              // white-orange flash, decaying
+      const e = Math.min(1, el / d.cutStart);              // then noise and colour bleed build up
+      return { mode: 'erupt', gain: 2.2 + 40 * f + 3 * (1 - e), noise: 0.05 + 0.85 * e, bleed: 0.003 + 0.02 * e, tint: [1.0, 0.72 + 0.1 * f, 0.42 + 0.3 * f] };
+    }
+    return id === 'fusion' ? { mode: 'erupt', gain: 1, noise: 0, bleed: 0, tint: [1, 1, 1] } : null;
+  }
+
+  _signalLost(g, r) {
+    g.fillStyle = '#000'; g.fillRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
+    g.font = '11px "Cascadia Mono", Consolas, monospace'; g.textAlign = 'center'; g.fillStyle = '#7a3a30';
+    g.fillText('SIGNAL LOST', r.x + r.w / 2, r.y + r.h / 2 - 6);
+    g.textAlign = 'left';
+  }
+
   /** 2D annotations: tile labels, track labels in fusion space, biometrics, spectrogram, header. */
   _overlay(L, tiles, dt) {
     const c = this.ov, g = this.og;
     if (c.width !== L.W || c.height !== L.H) { c.width = L.W; c.height = L.H; }
     g.clearRect(0, 0, L.W, L.H);
     g.font = '11px "Cascadia Mono", Consolas, monospace'; g.textBaseline = 'top';
+    if (this.death?.allBlack) return;
     for (const tl of tiles) {
       g.strokeStyle = '#1f2b2a'; g.strokeRect(tl.x + 0.5, tl.y + 0.5, tl.w, tl.h);
       g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(tl.x + 1, tl.y + 1, g.measureText(tl.label).width + 8, 14);
       g.fillStyle = DIM; g.fillText(tl.label, tl.x + 5, tl.y + 3);
+      if (this._deathState(tl.id)?.mode === 'black') this._signalLost(g, tl);
     }
     // fusion labels
     const m = L.main;
+    if (this._deathState('fusion')) { if (this._deathState('fusion').mode === 'black') this._signalLost(g, m); if (this._deathState('fusion').mode !== 'erupt') return; }
     g.fillStyle = DIM; g.fillText(`FUSION · LVLH · ${this.trackScale?.toFixed(0) ?? '—'} km`, m.x + 8, m.y + 8);
     g.fillText(`T+${this.s.t.toFixed(1)}  ×${this.g.timeScale}  ${this.ship.name}  Δv ${this.ship.deltaVRemaining().toFixed(0)} m/s  ${this.ship.alive ? '' : 'DESTROYED'}`, m.x + 8, m.y + 22);
     const v = new THREE.Vector3();
@@ -473,7 +517,9 @@ export class AIView {
     }
     if (this.preview) { g.fillStyle = CYAN; g.fillText(`PREVIEW: ${this.preview.label}  P(surv) ${(this.preview.pSurvive * 100).toFixed(0)}%`, m.x + 8, m.y + m.h - 18); }
     // biometrics: synthesised from the physiology model's rate and depth (what a sensor would show)
-    const vit = this.pilot?.vitals?.();
+    let vit = this.pilot?.vitals?.();
+    // the biometric telemetry comes from the cabin too: it dies with it
+    if (vit && this.death && (this.death.el ?? 0) > 0.3) vit = { ...vit, alive: false, hr: 0, rr: 0, spo2: 0 };
     const by = tiles.find((t) => t.id === 'CAM_RIGHT');
     const top = by ? by.y + by.h + 8 : 400, x0 = 6, w = L.left - 12;
     if (vit) {

@@ -106,6 +106,31 @@ export class CabinAudio {
 
   silence() { this.silencedUntil = (this.s?.t ?? 0) + 30; }
 
+  /**
+   * Death "reprise": a short motif of low sustained notes (D minor, rising D–F–A–D) that swell in
+   * turn and fade together over ~2.6 s. Non-diegetic, so it ignores cabin pressure.
+   */
+  reprise(delay = 0) {
+    if (!this.ok) return;
+    const c = this.ctx, t0 = c.currentTime + delay, end = t0 + 2.6;
+    const out = c.createGain(); out.gain.value = 0.9;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.4;
+    out.connect(lp); lp.connect(this.master);
+    [73.42, 87.31, 110.0, 146.83].forEach((f, k) => {
+      const ts = t0 + k * 0.35;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, ts);
+      g.gain.exponentialRampToValueAtTime(0.085 - k * 0.012, ts + 0.3);
+      g.gain.setValueAtTime(0.085 - k * 0.012, end - 1.4);
+      g.gain.exponentialRampToValueAtTime(0.0001, end);
+      g.connect(out);
+      for (const [type, det] of [['sine', 0], ['triangle', -0.003]]) {
+        const o = c.createOscillator(); o.type = type; o.frequency.value = f * (1 + det);
+        o.connect(g); o.start(ts); o.stop(end + 0.05);
+      }
+    });
+  }
+
   /** Per-frame: continuous sounds follow the simulated systems. */
   update(alarms) {
     if (!this.ok || !this.s) return;

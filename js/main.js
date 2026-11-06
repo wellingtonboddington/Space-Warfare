@@ -13,6 +13,8 @@ import { annunciators } from './render/cockpit.js';
 import { Coach } from './ui/coach.js';
 import { CameraWall } from './app/cameraWall.js';
 import { MANUAL } from './ui/help.js';
+import { DeathSequence, playerShipDestroyed } from './app/deathSequence.js';
+import { killShip } from './sim/damage.js';
 
 class App {
   constructor(root) {
@@ -105,6 +107,7 @@ class App {
       g.stepSim(dt);
       g.updateViews(dt);
       this.ctrl.update(dt);
+      this.death?.update(dt);
       const ship = g.ship, s = g.session;
       this.audio.update(annunciators(ship));
       this.hud.setTop(this._topLine());
@@ -112,7 +115,7 @@ class App {
       if (g.mode === 'human') this.hud.setVisor(ship.pilotVisorClosed, ship.life?.suitSealed);
       this.camWall?.update();
       const ph = s.playerPilot?.phys;
-      if (g.mode === 'human') this.hud.setDim(ph ? (ph.alive ? (ph.conscious ? Math.max(0, (ph.g - 3) / 3) * 0.5 : 0.92) : 1) : 0);
+      if (g.mode === 'human' && !this.death) this.hud.setDim(ph ? (ph.alive ? (ph.conscious ? Math.max(0, (ph.g - 3) / 3) * 0.5 : 0.92) : 1) : 0);
       if (this.hud.chatOpen && (this._chatRefresh = (this._chatRefresh ?? 0) + dt) > 1) { this._chatRefresh = 0; this.hud.refreshChat(this._options()); }
       g.renderFeeds();
       if (g.mode === 'human') this.gr.render({ origin: ship.pos.slice(), camWorldPos: this.ctrl.camPos, camQuat: this.ctrl.camQuat, fov: this.gr.nearCam.fov, dt, cabinSun: g.cabinSun });
@@ -138,7 +141,7 @@ class App {
 
   _key(e) {
     const g = this.game;
-    if (!g) return;
+    if (!g || this.death) return; // the death sequence takes its own input (click / Esc to skip)
     if (this.hud?.manualOpen) { if (e.code === 'Escape' || e.code === 'KeyH') { this.hud.closeManual(); e.preventDefault(); } return; }
     if (e.code === 'KeyH' && !this.hud?.chatOpen) { this.openManual(); return; }
     if (e.code === 'KeyC' && g.mode === 'human' && !this.hud?.chatOpen && !this.hud?.paused) { this.toggleCameras(); return; }
@@ -197,8 +200,12 @@ class App {
     const g = this.game;
     if (!g || g.ended) return;
     g.ended = true;
-    // let the world play on for a moment so the last words land
-    if (!forced) await new Promise((r) => setTimeout(r, 3500));
+    if (!forced && playerShipDestroyed(g.session) && this.ctrl) {
+      // our own ship died: the death sequence, then the debrief as always
+      this.death = new DeathSequence(this);
+      await this.death.play();
+      this.death = null;
+    } else if (!forced) await new Promise((r) => setTimeout(r, 3500)); // let the world play on so the last words land
     const { Debrief } = await import('./ui/debrief.js');
     this.ctrl?.dispose?.(); this.ctrl = null;
     this.voice?.cancelAll?.();
@@ -209,6 +216,16 @@ class App {
     d.hide();
     if (again === 'replay') this.startGame({ ...g.opts }, { briefing: true });
     else this.toMenu();
+  }
+
+  /** Test/screenshot hook: destroy the player's ship for real and let the normal outcome path run. */
+  debugDeath() {
+    const g = this.game;
+    if (!g || g.ended) return 'no running game';
+    const s = g.session;
+    killShip(s.world, s.playerShip, 'kkv', { component: 'cabin', debug: true });
+    this._onOutcome();
+    return 'death sequence started';
   }
 
   _installHook() {

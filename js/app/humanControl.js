@@ -38,7 +38,7 @@ export class HumanControl {
     // Works with or without mouse capture: when the pointer is free, you point at a control with
     // the cursor and click it; clicking empty space captures the mouse for free look (Esc releases).
     on(canvas, 'mousedown', (e) => {
-      if (ui.modalOpen()) return;
+      if (ui.modalOpen() || this.g.ended) return;
       if (!this.locked) this.mouse = { x: e.clientX, y: e.clientY };
       this._pickNow();
       if (this.locked) { if (e.button === 0) this.activate(+1); else if (e.button === 2) this.activate(-1); return; }
