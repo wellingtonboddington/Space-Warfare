@@ -175,6 +175,9 @@ class App {
     if (!forced) await new Promise((r) => setTimeout(r, 3500));
     const { Debrief } = await import('./ui/debrief.js');
     this.ctrl?.dispose?.(); this.ctrl = null;
+    this.voice?.cancelAll?.();
+    this.debug?.close?.();
+    if (this.hud) { this.hud.closeChat(); this.hud.el.style.display = 'none'; }
     const d = new Debrief(this.root);
     const again = await d.show(g, { forced });
     d.hide();

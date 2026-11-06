@@ -50,7 +50,7 @@ export class Menu {
       const s = this.sel;
       const render = () => {
         this.el.innerHTML = `<div class="wrap">
-          <h1>SEVERANCE</h1><div class="sub">CISLUNAR · 2117 · THE DOCTRINE HOLDS · PASS 1</div>
+          <h1>SEVERANCE</h1><div class="sub">CISLUNAR SPACE · MERIDIAN + 23 YEARS · THE DOCTRINE HOLDS · PASS 1</div>
           <div class="row">
             <div class="card ${s.mode === 'human' ? 'on' : ''}" data-mode="human"><h2>HUMAN · PILOT SEAT</h2><p>You are the pilot. You can touch every switch inside the hull and nothing outside it. The ship's AI flies, sees and shoots — when you let it. Read the raw feeds, weigh what it tells you, set the trust dial.</p></div>
             <div class="card ${s.mode === 'ai' ? 'on' : ''}" data-mode="ai"><h2>AI · SHIP MIND</h2><p>You are the ship. Exterior authority only: burns, sensors, weapons. You cannot touch a switch. Everything inside the hull depends on a frightened human who may or may not believe you.</p></div>

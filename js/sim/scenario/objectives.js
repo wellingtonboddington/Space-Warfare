@@ -127,6 +127,7 @@ export class ObjectiveEvaluator {
  */
 export function missionKill(ship) {
   if (!ship.alive) return 'destroyed';
+  if (ship.passive || ship.spec.decoy || ship.spec.hull === 'decoy') return null; // nothing aboard to kill
   if (ship.crewAlive === 0) return 'crew-killed';
   const H = (k) => ship.componentHealth(k, 1);
   for (const k of ['cabin', 'control', 'reactor', 'powerplant']) if (ship.components.has(k) && H(k) < 0.2) return `${k}-destroyed`;

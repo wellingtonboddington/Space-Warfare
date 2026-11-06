@@ -191,7 +191,9 @@ export class ShipAgent {
         // Dry tanks end every future option, evasion included: never burn the last of it lightly
         { name: 'dry tanks', value: c.dv ? ship.deltaVRemaining() - len(c.dv) : 9999, curve: Curves.floor(Curves.rising(30, 160), 0.02), weight: 1 },
       ];
-      return { key: c.key, label: c.label, considerations: cons, base: ordered ? 1.7 : forbidden ? 0.35 : 1, data: { c, m }, minHold: 4 };
+      // an "evade now" order favours every evasive candidate for half a minute (the AI still picks which)
+      const evadeOrder = this.orders.maneuver?.kind === 'evade' && t - this.orders.maneuver.t < 30 && c.kind === 'evade';
+      return { key: c.key, label: c.label, considerations: cons, base: ordered ? 1.7 : evadeOrder ? 1.6 : forbidden ? 0.35 : 1, data: { c, m }, minHold: 4 };
     });
     const pick = this.r.maneuver.choose(options, t);
     this.plan = { t, options: this.r.maneuver.last.slice(0, 8).map((o) => ({ key: o.key, label: o.label, score: o.total, pSurvive: o.data.m.pSurvive, obj: o.data.m.obj.value, dv: o.data.c.dv ? len(o.data.c.dv) : 0, kind: o.data.c.kind })), coastSurvive: coast.pSurvive };

@@ -5,7 +5,7 @@
 // Usage: node tools/smoke.mjs [--quick] [--out screenshots] [--only human:recon] [--seconds 120]
 import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT } from './esbuild.config.mjs';
 
@@ -14,7 +14,7 @@ let playwright;
 try { playwright = require('playwright'); } catch { playwright = require('/opt/node-tools/node_modules/playwright'); }
 
 const args = process.argv.slice(2);
-const outDir = join(ROOT, args.includes('--out') ? args[args.indexOf('--out') + 1] : 'screenshots');
+const outDir = resolve(ROOT, args.includes('--out') ? args[args.indexOf('--out') + 1] : 'screenshots');
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
 const simSeconds = args.includes('--seconds') ? +args[args.indexOf('--seconds') + 1] : 120;
 mkdirSync(outDir, { recursive: true });
