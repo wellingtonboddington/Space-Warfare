@@ -76,7 +76,7 @@ function pilotHints(s) {
   if (pend) out.push(`The AI asks: "${pend.label}" — ${Math.max(0, Math.round(pend.windowEnd - t))} s left. CONFIRM or DENY (pedestal buttons), or TAB.`);
   if (ship.kkvRemaining > 0 && I.get('weaponsConsent') !== 1 && (t - (agent._wantConsentT ?? -1e9) < 30 || pend?.kind === 'kkv')) out.push('It has a firing solution but WEAPONS CONSENT is SAFE — flip the guarded switch on the pedestal if you agree.');
   const inbound = s.playerMind.ranked().find((a) => a.pKKV > 0.35 && a.cpa.d < 6e3 && a.cpa.t > t && !a.friendly);
-  if (inbound) out.push(`KKV inbound in ~${Math.round(inbound.cpa.t - t)} s (AI estimate)${ship.pd.length ? ' — point defence needs dial ≥ CONFIRM LETHAL and a charged capacitor' : ''}. TAB → "Evade. Now."`);
+  if (inbound) out.push(`KKV inbound in ~${Math.round(inbound.cpa.t - t)} s (AI estimate)${ship.pd.length ? ' — point defence needs the dial at CONFIRM LETHAL or higher and a charged capacitor' : ''}. TAB → "Evade. Now."`);
   const probs = diagnose(ship, t).filter((p) => p.kind !== 'consent').sort((a, b) => b.severity - a.severity);
   if (probs[0] && probs[0].severity > 0.25) out.push(`Inside: ${probs[0].label} → ${probs[0].actions[0]?.label ?? 'see MFD R'}. Hover a control to see what it does.`);
   if (ship.kkvRemaining > 0 && !pend && I.get('trustDial') < 3) {
@@ -98,7 +98,8 @@ function aiHints(s, g) {
   if (fi) out.push(fi.status ?? `Firing on ${fi.label}…`);
   else if (ship.kkvRemaining > 0) {
     const fo = agent.fireOptions(t).filter((o) => o.data).sort((a, b) => b.data.pk - a.data.pk)[0];
-    if (fo) out.push(`Firing solution: ${fo.label}, Pk ${Math.round(fo.data.pk * 100)}% — click it under WEAPONS.`);
+    if (fo && fo.data.pk >= 0.35) out.push(`Firing solution: ${fo.label}, Pk ${Math.round(fo.data.pk * 100)}% — click it under WEAPONS.`);
+    else if (fo) out.push(`A shot now has only Pk ${Math.round(fo.data.pk * 100)}% — get closer first: the "close" burns show the Pk they would give.`);
     else if (tracks.some((a) => a.pHostile > 0.5)) out.push('No firing solution yet — pick a "close" burn to get within launch range.');
   }
   if (s.scenario.objective?.type === 'recon' && tracks.length && tracks.every((a) => a.pFamily >= (s.scenario.objective.classifyThreshold ?? 0.8))) out.push('Every contact is classified past the threshold — click RELAY TRACK FILE.');

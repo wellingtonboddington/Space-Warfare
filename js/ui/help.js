@@ -15,7 +15,7 @@ export const CONTROL_HELP = {
   SW_BATT: { name: 'BATTERY', does: 'Connects the battery to the buses. Off = fuel cells only; brownouts come faster.', when: 'Leave ON.' },
   SW_BUS_TIE: { name: 'BUS TIE', does: 'Joins power buses A and B so either source can feed both. Helps when one bus sags; spreads a short to both.', when: 'If one bus is sagging (PWR caution) and the other is healthy.' },
   SW_FUELCELL2: { name: 'FUEL CELL 2', does: 'Second fuel cell onto bus B.', when: 'Leave ON unless it is damaged.' },
-  SW_CAP_CHG: { name: 'PD CAPACITOR CHARGE (guarded)', does: 'Charges the point-defence capacitor bank from spare power. Picket only has PD lasers; without charge they cannot fire.', when: 'ON before a raid. Charging draws power — watch for brownouts.' },
+  SW_CAP_CHG: { name: 'PD CAPACITOR CHARGE (guarded)', does: 'Charges the point-defence capacitor bank from spare power. Skirmisher has one light PD laser, Picket two heavy ones (Recon none); without charge they cannot fire.', when: 'ON before a raid. Charging draws power — watch for brownouts.' },
   SW_SENS_BUS: { name: 'SENSOR BUS SELECT', does: 'Which power bus feeds the sensors: A, B or cross-tied.', when: 'If sensors drop out because their bus is sagging (SENS caution), move them to the healthy bus.' },
   VLV_CLNT_A: { name: 'COOLANT VALVE A', does: 'Coolant loop A. Shut it to isolate a leak on that loop (less cooling).', when: 'When CLNT caution shows a leak — shut the leaking loop.' },
   VLV_CLNT_B: { name: 'COOLANT VALVE B', does: 'Coolant loop B (as loop A).', when: 'Isolate a leak on loop B.' },
@@ -95,7 +95,7 @@ export const CONSOLE_HELP = {
   radDeploy: 'Radiators out: full cooling, bright in infrared.',
   radStow: 'Radiators in: run cold and dim, but heat builds up (the pilot\'s cabin gets hot).',
   autoThermal: 'Let the AI\'s thermal reflexes decide.',
-  pdAuto: 'Point-defence lasers engage incoming KKVs automatically (Picket).',
+  pdAuto: 'Point-defence lasers engage incoming KKVs automatically (Skirmisher: one light turret; Picket: two heavy ones).',
   relay: 'Send the track file home over the laser/radio link (Recon objective). Needs line of sight to the relay.',
   say: 'Talk to the pilot (TAB). Choose WHAT and HOW (framing). They cannot see your data — they only know what you tell them and what they see themselves.',
 };
@@ -131,8 +131,8 @@ export const MANUAL = [
   <li><b>Watch the human.</b> The cabin cameras and biometrics show you a frightened person deciding whether to believe you.</li></ol>` },
   { title: 'The three ships', body: `<p>All three are the same Interceptor chassis and the same crew capsule — the kit bolted outside differs.</p>
   <ul><li><b>Recon</b>: big telescope, radar, lidar, laser comm. Classify the contacts confidently and correctly, send the track file home, survive. No weapons.</li>
-  <li><b>Skirmisher</b>: a rack of KKVs (kinetic kill vehicles — guided slugs). Kill or disable the target, keep enough Δv to get away.</li>
+  <li><b>Skirmisher</b>: a rack of six KKVs (kinetic kill vehicles — guided slugs) and one light point-defence laser. Kill or disable the target, keep enough Δv to get away.</li>
   <li><b>Picket</b>: point-defence lasers, big radiators, a capacitor bank. Keep the depot alive through a raid that mixes real KKVs and decoys.</li></ul>
-  <p>Against an incoming KKV: Picket can shoot it down with lasers; everyone can <b>evade</b> (burn) — the earlier, the cheaper. Decoys look like KKVs until they don't.</p>` },
+  <p>Against an incoming KKV: point-defence lasers can blind or break it (Picket's two heavy turrets, Skirmisher's single light one — the capacitor must be charged and the dial at CONFIRM LETHAL or higher); everyone can <b>evade</b> (burn) — the earlier, the cheaper. KKVs cannot be used to shoot down KKVs. Decoys look like KKVs until they don't.</p>` },
   { title: 'Space, briefly', body: `<p>Real orbital mechanics around the Moon: you can't stop or steer like a plane; every burn costs Δv you don't get back. There is no stealth — anything warm or radiating can be seen, light-delayed. The cabin is the only pressurised, human-reachable compartment; the rest of the ship is tanks, engine and machinery.</p>` },
 ];
